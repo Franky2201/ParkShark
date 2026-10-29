@@ -9,11 +9,11 @@ import org.springframework.stereotype.Component;
 public class DivisionMapper {
 
     public Division toEntity(CreateDivisionDto createDivisionDto) {
-        return new Division(createDivisionDto.name(), createDivisionDto.originalName(), createDivisionDto.director());
+        return new Division(createDivisionDto.name(), createDivisionDto.originalName(), createDivisionDto.directorId());
     }
 
     public DivisionDto toDto(Division division) {
-        return new DivisionDto(division.getName(), division.getOriginalName(), division.getDirector());
+        return new DivisionDto(division.getName(), division.getOriginalName(), division.getDirectorId());
     }
 
 }

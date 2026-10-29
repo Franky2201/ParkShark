@@ -1,9 +1,7 @@
 package com.bordeauxbrothers.parkshark.feature.division.domain;
 
-import com.bordeauxbrothers.parkshark.feature.person.domain.Person;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,10 +19,8 @@ public class Division {
     @NotBlank(message = "division original name should not be blank")
     private String originalName;
 
-    @NotNull(message = "division should have a director")
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "director_id", nullable = false)
-    private Person director;
+    @Column(name = "director_id", nullable = false)
+    private Integer directorId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_division_id")
@@ -33,10 +29,10 @@ public class Division {
     @OneToMany(mappedBy = "parentDivision")
     private List<Division> subdivisions = new ArrayList<>();
 
-    public Division(String name, String originalName, Person director) {
+    public Division(String name, String originalName, Integer director) {
         this.name = name;
         this.originalName = originalName;
-        this.director = director;
+        this.directorId = director;
     }
 
     public Division() {
@@ -55,8 +51,8 @@ public class Division {
         return originalName;
     }
 
-    public Person getDirector() {
-        return director;
+    public Integer getDirectorId() {
+        return directorId;
     }
 
     public List<Division> getSubdivisions() {
@@ -65,5 +61,6 @@ public class Division {
 
     public void addSubdivision(Division division) {
         subdivisions.add(division);
+        division.parentDivision = this;
     }
 }

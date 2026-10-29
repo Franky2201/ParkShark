@@ -4,10 +4,8 @@ import com.bordeauxbrothers.parkshark.feature.division.api.dto.CreateDivisionDto
 import com.bordeauxbrothers.parkshark.feature.division.api.dto.DivisionDto;
 import com.bordeauxbrothers.parkshark.feature.division.service.DivisionService;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(path = "/division")
@@ -20,6 +18,7 @@ public class DivisionController {
     }
 
     @PostMapping(consumes = "application/json", produces = "application/json")
+    @ResponseStatus(HttpStatus.CREATED)
     public DivisionDto createDivision(
             @Valid @RequestBody CreateDivisionDto createDivisionDto) {
         return divisionService.createDivision(createDivisionDto);
