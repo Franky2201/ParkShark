@@ -3,12 +3,13 @@ package com.bordeauxbrothers.parkshark.feature.division.api;
 import com.bordeauxbrothers.parkshark.feature.division.api.dto.CreateDivisionDto;
 import com.bordeauxbrothers.parkshark.feature.division.api.dto.DivisionDto;
 import com.bordeauxbrothers.parkshark.feature.division.service.DivisionService;
-import org.springframework.stereotype.Repository;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-@Repository
+@RestController
 @RequestMapping(path = "/division")
 public class DivisionController {
 
@@ -19,7 +20,8 @@ public class DivisionController {
     }
 
     @PostMapping(consumes = "application/json", produces = "application/json")
-    public DivisionDto createDivision(@RequestBody CreateDivisionDto createDivisionDto) {
+    public DivisionDto createDivision(
+            @Valid @RequestBody CreateDivisionDto createDivisionDto) {
         return divisionService.createDivision(createDivisionDto);
     }
 
