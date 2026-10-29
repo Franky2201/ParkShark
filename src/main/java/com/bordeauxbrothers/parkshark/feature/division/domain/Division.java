@@ -26,8 +26,12 @@ public class Division {
     @JoinColumn(name = "director_id", nullable = false)
     private Person director;
 
-    @OneToMany(mappedBy = "subdivision")
-    private final List<Division> subdivisions = new ArrayList<>();
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_division_id")
+    private Division parentDivision;
+
+    @OneToMany(mappedBy = "parentDivision")
+    private List<Division> subdivisions = new ArrayList<>();
 
     public Division(String name, String originalName, Person director) {
         this.name = name;
