@@ -1,4 +1,4 @@
-package com.bordeauxbrothers.parkshark.feature.division.service;
+package com.bordeauxbrothers.parkshark.division.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 

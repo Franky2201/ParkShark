@@ -1,4 +1,4 @@
-package com.bordeauxbrothers.parkshark.feature.division.api;
+package com.bordeauxbrothers.parkshark.division.api;
 
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.AfterEach;
