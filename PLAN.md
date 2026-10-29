@@ -189,7 +189,7 @@
 * **Domain & Service Validation Rules:**
   * If `parentDivisionId` is provided, verify the parent division exists; otherwise throw `DivisionNotFoundException` (`404 Not Found` / `400 Bad Request`).
 * **Subtasks:**
-  - [ ] Add nullable `parent_division_id` foreign key column to `division` table in Flyway.
+  - [ ] Add nullable `subdivision_id` foreign key column to `division` table in Flyway.
   - [ ] Update `Division` entity with self-referencing `@ManyToOne` `parentDivision`.
   - [ ] Update `DivisionService`, `CreateDivisionDto`, and `DivisionDto`.
   - [ ] Write RestAssured integration tests for valid parent and non-existent parent ID.
