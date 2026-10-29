@@ -165,7 +165,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * @return the response produced by the default implementation
      */
     @Override
-    protected ResponseEntity<Object> handleExceptionInternal(Exception ex, @Nullable Object body, HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
+    protected ResponseEntity<Object> handleExceptionInternal(Exception ex, @Nullable Object body, @NonNull HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
         log.warn("{} on {}: {}", statusCode.value(), request.getDescription(false), ex.getMessage());
         return super.handleExceptionInternal(ex, body, headers, statusCode, request);
     }
