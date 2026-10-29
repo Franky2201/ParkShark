@@ -1,0 +1,20 @@
+package com.bordeauxbrothers.parkshark.person.domain;
+
+import com.bordeauxbrothers.parkshark.person.domain.persondetails.Name;
+import com.bordeauxbrothers.parkshark.person.domain.persondetails.Role;
+
+import java.time.LocalDate;
+
+public class Admin extends Person{
+
+    public Admin(
+            Name name,
+            String email,
+            String passwordHash,
+            LocalDate registrationDate
+    ){
+        super(name, email,passwordHash, registrationDate, Role.ADMIN);
+    }
+    protected Admin() {
+    }
+}
