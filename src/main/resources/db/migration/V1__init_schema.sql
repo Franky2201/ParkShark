@@ -144,7 +144,7 @@ CREATE TABLE division (
                           name VARCHAR(150) NOT NULL,
                           original_name VARCHAR(150) NOT NULL,
                           director_id INTEGER NOT NULL,
-                          parent_division_id INTEGER,
+                          subdivision_id INTEGER,
 
                           CONSTRAINT uq_division_name
                               UNIQUE (name),
