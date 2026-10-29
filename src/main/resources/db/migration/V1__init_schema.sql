@@ -153,12 +153,12 @@ CREATE TABLE division (
                               FOREIGN KEY (director_id)
                                   REFERENCES person (id),
 
-                          CONSTRAINT fk_division_parent
-                              FOREIGN KEY (parent_division_id)
+                          CONSTRAINT fk_subdivision
+                              FOREIGN KEY (subdivision_id)
                                   REFERENCES division (id),
 
-                          CONSTRAINT chk_division_not_own_parent
-                              CHECK (parent_division_id <> id)
+                          CONSTRAINT chk_division_not_own_child
+                              CHECK (subdivision_id <> id)
 );
 
 
@@ -339,8 +339,8 @@ CREATE INDEX idx_contact_person_address
 CREATE INDEX idx_division_director
     ON division (director_id);
 
-CREATE INDEX idx_division_parent
-    ON division (parent_division_id);
+CREATE INDEX idx_subdivision
+    ON division (subdivision_id);
 
 CREATE INDEX idx_parking_lot_contact
     ON parking_lot (contact_person_id);
