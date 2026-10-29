@@ -1,8 +1,8 @@
-package com.bordeauxbrothers.parkshark.feature.division.api;
+package com.bordeauxbrothers.parkshark.division.api;
 
-import com.bordeauxbrothers.parkshark.feature.division.api.dto.CreateDivisionDto;
-import com.bordeauxbrothers.parkshark.feature.division.api.dto.DivisionDto;
-import com.bordeauxbrothers.parkshark.feature.division.domain.Division;
+import com.bordeauxbrothers.parkshark.division.api.dto.CreateDivisionDto;
+import com.bordeauxbrothers.parkshark.division.api.dto.DivisionDto;
+import com.bordeauxbrothers.parkshark.division.domain.Division;
 import org.springframework.stereotype.Component;
 
 @Component

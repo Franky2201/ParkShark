@@ -1,4 +1,4 @@
-package com.bordeauxbrothers.parkshark.feature.division.domain;
+package com.bordeauxbrothers.parkshark.division.domain;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

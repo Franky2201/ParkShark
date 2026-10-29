@@ -1,9 +1,9 @@
-package com.bordeauxbrothers.parkshark.feature.division.service;
+package com.bordeauxbrothers.parkshark.division.service;
 
-import com.bordeauxbrothers.parkshark.feature.division.api.DivisionMapper;
-import com.bordeauxbrothers.parkshark.feature.division.api.dto.CreateDivisionDto;
-import com.bordeauxbrothers.parkshark.feature.division.api.dto.DivisionDto;
-import com.bordeauxbrothers.parkshark.feature.division.domain.DivisionRepository;
+import com.bordeauxbrothers.parkshark.division.api.DivisionMapper;
+import com.bordeauxbrothers.parkshark.division.api.dto.CreateDivisionDto;
+import com.bordeauxbrothers.parkshark.division.api.dto.DivisionDto;
+import com.bordeauxbrothers.parkshark.division.domain.DivisionRepository;
 import org.springframework.stereotype.Service;
 
 @Service

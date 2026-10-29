@@ -1,8 +1,8 @@
-package com.bordeauxbrothers.parkshark.feature.division.api;
+package com.bordeauxbrothers.parkshark.division.api;
 
-import com.bordeauxbrothers.parkshark.feature.division.api.dto.CreateDivisionDto;
-import com.bordeauxbrothers.parkshark.feature.division.api.dto.DivisionDto;
-import com.bordeauxbrothers.parkshark.feature.division.service.DivisionService;
+import com.bordeauxbrothers.parkshark.division.api.dto.CreateDivisionDto;
+import com.bordeauxbrothers.parkshark.division.api.dto.DivisionDto;
+import com.bordeauxbrothers.parkshark.division.service.DivisionService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
