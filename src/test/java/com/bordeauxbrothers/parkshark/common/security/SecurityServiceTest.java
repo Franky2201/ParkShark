@@ -5,7 +5,7 @@ import com.bordeauxbrothers.parkshark.common.exception.UnauthorizedException;
 import com.bordeauxbrothers.parkshark.person.domain.Manager;
 import com.bordeauxbrothers.parkshark.person.domain.Member;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Feature;
-import com.bordeauxbrothers.parkshark.person.repository.PersonRepository;
+import com.bordeauxbrothers.parkshark.person.repositories.PersonRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;

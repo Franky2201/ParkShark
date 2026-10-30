@@ -1,9 +1,8 @@
 package com.bordeauxbrothers.parkshark.person.service.dtos;
 
-import com.bordeauxbrothers.parkshark.person.domain.persondetails.Address;
-import com.bordeauxbrothers.parkshark.person.domain.persondetails.LicensePlate;
-import com.bordeauxbrothers.parkshark.person.domain.persondetails.Membership;
-import com.bordeauxbrothers.parkshark.person.domain.persondetails.Name;
+import com.bordeauxbrothers.parkshark.person.domain.persondetails.*;
+import com.bordeauxbrothers.parkshark.person.service.customvalidators.AtLeastOnePhone;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 
@@ -14,7 +13,8 @@ public class AddMemberDTO {
     private Name name;
     @NotNull(message = "Address should not be null")
     @Valid
-    private Address address;
+    @JsonProperty("address")
+    private AddressDTO addressDTO;
     private String phoneNumber;
     private String mobileNumber;
     @NotBlank(message = "Email should not be blank")
@@ -29,17 +29,18 @@ public class AddMemberDTO {
     private String password;
     @NotNull
     @Valid
-    private LicensePlate licensePlate;
+    @JsonProperty("license_plate")
+    private LicensePlateDTO licensePlateDTO;
     private Membership membership;
 
-    public AddMemberDTO(Name name, Address address, String phoneNumber, String mobileNumber, String email, String password, LicensePlate licensePlate, Membership membership) {
+    public AddMemberDTO(Name name, AddressDTO addressDTO, String phoneNumber, String mobileNumber, String email, String password, LicensePlateDTO licensePlateDTO, Membership membership) {
         this.name = name;
-        this.address = address;
+        this.addressDTO = addressDTO;
         this.phoneNumber = phoneNumber;
         this.mobileNumber = mobileNumber;
         this.email = email;
         this.password = password;
-        this.licensePlate = licensePlate;
+        this.licensePlateDTO = licensePlateDTO;
         this.membership = membership;
     }
 
@@ -47,8 +48,8 @@ public class AddMemberDTO {
         return name;
     }
 
-    public Address getAddress() {
-        return address;
+    public AddressDTO getAddressDTO() {
+        return addressDTO;
     }
 
     public String getPhoneNumber() {
@@ -59,8 +60,8 @@ public class AddMemberDTO {
         return email;
     }
 
-    public LicensePlate getLicensePlate() {
-        return licensePlate;
+    public LicensePlateDTO getLicensePlateDTO() {
+        return licensePlateDTO;
     }
 
     public String getPassword() {

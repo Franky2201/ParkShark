@@ -1,6 +1,8 @@
 package com.bordeauxbrothers.parkshark.person.service.mappers;
 
 import com.bordeauxbrothers.parkshark.person.domain.Member;
+import com.bordeauxbrothers.parkshark.person.domain.persondetails.Address;
+import com.bordeauxbrothers.parkshark.person.domain.persondetails.LicensePlate;
 import com.bordeauxbrothers.parkshark.person.service.dtos.AddMemberDTO;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -15,24 +17,25 @@ public class PersonMapper {
         this.passwordEncoder = passwordEncoder;
     }
 
-    public Member fromAddMemberDTOtoMember(AddMemberDTO addMemberDTO) {
+    public Member fromAddMemberDTOtoMember(
+            AddMemberDTO dto,
+            Address address,
+            LicensePlate licensePlate
+    ) {
         return new Member(
-                addMemberDTO.getName(),
-                addMemberDTO.getEmail(),
-                hashedPassword(addMemberDTO.getPassword()),
-                registrationDate(),
-                addMemberDTO.getAddress(),
-                addMemberDTO.getPhoneNumber(),
-                addMemberDTO.getMobileNumber(),
-                addMemberDTO.getLicensePlate(),
-                addMemberDTO.getMembership()
+                dto.getName(),
+                dto.getEmail(),
+                passwordEncoder.encode(dto.getPassword()),
+                LocalDate.now(),
+                address,
+                dto.getPhoneNumber(),
+                dto.getMobileNumber(),
+                licensePlate,
+                dto.getMembership()
         );
     }
 
     private String hashedPassword(String password){
         return passwordEncoder.encode(password);
-    }
-    private LocalDate registrationDate(){
-        return LocalDate.now();
     }
 }

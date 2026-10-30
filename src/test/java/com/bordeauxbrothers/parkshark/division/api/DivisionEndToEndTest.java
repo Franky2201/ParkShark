@@ -21,7 +21,7 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import com.bordeauxbrothers.parkshark.person.domain.Manager;
 import com.bordeauxbrothers.parkshark.person.domain.Member;
 import com.bordeauxbrothers.parkshark.person.domain.Person;
-import com.bordeauxbrothers.parkshark.person.repository.PersonRepository;
+import com.bordeauxbrothers.parkshark.person.repositories.PersonRepository;
 
 import java.util.HashMap;
 import java.util.List;

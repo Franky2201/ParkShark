@@ -123,6 +123,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.BAD_REQUEST, ex, req);
     }
 
+    @ExceptionHandler(EmailAlreadyInUseException.class)
+    public ProblemDetail handleEmailAlreadyInUse(EmailAlreadyInUseException ex, HttpServletRequest req) {
+        return problem(HttpStatus.BAD_REQUEST, ex, req);
+    }
+
     /**
      * Last-resort handler for any exception not handled elsewhere. These are bugs, not client errors.
      * <p>Logs the full stack trace at ERROR level and returns a generic message,
