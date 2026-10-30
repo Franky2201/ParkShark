@@ -6,6 +6,8 @@ import com.bordeauxbrothers.parkshark.division.api.dto.DivisionDto;
 import com.bordeauxbrothers.parkshark.division.domain.DivisionRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class DivisionService {
 
@@ -21,5 +23,10 @@ public class DivisionService {
         return divisionMapper.toDto(
                 divisionRepository.save(
                         divisionMapper.toEntity(createDivisionDto)));
+    }
+
+    public List<DivisionDto> getAllDivisions() {
+        return divisionMapper.toDto(
+                divisionRepository.findAll());
     }
 }
