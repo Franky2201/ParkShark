@@ -2,10 +2,14 @@ package com.bordeauxbrothers.parkshark.person.domain;
 
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Name;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Role;
+import jakarta.persistence.DiscriminatorValue;
+import jakarta.persistence.Entity;
 
 import java.time.LocalDate;
 
-public class Admin extends Person{
+@Entity
+@DiscriminatorValue("ADMIN")
+public class Admin extends Person {
 
     public Admin(
             Name name,

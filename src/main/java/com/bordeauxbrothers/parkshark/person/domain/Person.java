@@ -9,6 +9,11 @@ import jakarta.persistence.*;
 import java.time.LocalDate;
 
 @Entity
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(
+        name = "role",
+        discriminatorType = DiscriminatorType.STRING
+)
 public abstract class Person {
 
     @Id
@@ -28,12 +33,12 @@ public abstract class Person {
     private LocalDate registrationDate;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "role")
+    @Column(name = "role", insertable = false, updatable = false)
     private Role role;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "membership")
-    private Membership membership;
+//    @Enumerated(EnumType.STRING)
+//    @Column(name = "membership")
+//    private Membership membership;
 
     protected Person() {
     }

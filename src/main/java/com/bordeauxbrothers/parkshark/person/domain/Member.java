@@ -4,7 +4,8 @@ import com.bordeauxbrothers.parkshark.person.domain.persondetails.*;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
-
+@Entity
+@DiscriminatorValue("USER")
 public class Member extends Person {
 
     @ManyToOne
