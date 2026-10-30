@@ -57,12 +57,12 @@
 * **Priority:** Must-Have
 * **Branch:** `chore/TECH3-common-exceptions-and-value-objects`
 * **Dependencies:** `TECH-1`
-* **Description:** Create the `common` package containing the global exception handler (with SLF4J error logging) and reusable `@Embeddable` value objects (`Address`, `PostalCode`, `LicensePlate`).
+* **Description:** Create the `common` package containing the global exception handler (with SLF4J error logging) and reusable `@Embeddable` value objects (`Address`, `PostalCode`, `LicensePlateDTO`).
 * **Subtasks:**
   - [ ] Implement `ControllerExceptionHandler` (`@RestControllerAdvice`) logging all exceptions (`logger.error(...)`) and returning structured error JSON (`timestamp`, `status`, `error`, `message`, `path`).
   - [ ] Create base exceptions: `ResourceNotFoundException` (404), `BusinessValidationException` / `IllegalArgumentException` (400), `DuplicateResourceException` (409), `ForbiddenOperationException` (403).
   - [ ] Implement `@Embeddable` `PostalCode` (`code`, `label`) and `Address` (`streetName`, `streetNumber`, `PostalCode`).
-  - [ ] Implement `@Embeddable` `LicensePlate` (`plateNumber`, `issuingCountry`).
+  - [ ] Implement `@Embeddable` `LicensePlateDTO` (`plateNumber`, `issuingCountry`).
 
 ---
 
@@ -352,7 +352,7 @@
   * `registrationDate` is set server-side using `java.time.LocalDate`.
 * **Subtasks:**
   - [ ] Add `member` table DDL in Flyway.
-  - [ ] Create `Member` entity with embedded `Address` and `LicensePlate`, and `LocalDate registrationDate`.
+  - [ ] Create `Member` entity with embedded `Address` and `LicensePlateDTO`, and `LocalDate registrationDate`.
   - [ ] Create `MemberRepository`, `MemberService`, and `MemberController` (`POST /members`).
   - [ ] Write RestAssured integration tests for valid registration and invalid/missing fields.
 

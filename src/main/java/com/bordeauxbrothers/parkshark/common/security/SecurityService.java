@@ -1,10 +1,10 @@
 package com.bordeauxbrothers.parkshark.common.security;
 
-import com.bordeauxbrothers.parkshark.common.exception.ForbiddenException;
-import com.bordeauxbrothers.parkshark.common.exception.UnauthorizedException;
+import com.bordeauxbrothers.parkshark.common.security.exception.ForbiddenException;
+import com.bordeauxbrothers.parkshark.common.security.exception.UnauthorizedException;
 import com.bordeauxbrothers.parkshark.person.domain.Person;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Feature;
-import com.bordeauxbrothers.parkshark.person.repository.PersonRepository;
+import com.bordeauxbrothers.parkshark.person.repositories.PersonRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -21,7 +21,7 @@ public class SecurityService {
         this.encoder = encoder;
     }
 
-    public void validateAuthorization(String authorization, Feature feature){
+    public Person validateAuthorization(String authorization, Feature feature){
         if(authorization == null || authorization.isBlank() || !authorization.startsWith("Basic ")){
             throw new UnauthorizedException();
         }
@@ -55,5 +55,7 @@ public class SecurityService {
         if (!member.canHaveAccessTo(feature)) {
             throw new ForbiddenException("You don't have the rights to access this resource.");
         }
+
+        return member;
     }
 }

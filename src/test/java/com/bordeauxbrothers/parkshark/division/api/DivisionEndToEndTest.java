@@ -21,7 +21,7 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import com.bordeauxbrothers.parkshark.person.domain.Manager;
 import com.bordeauxbrothers.parkshark.person.domain.Member;
 import com.bordeauxbrothers.parkshark.person.domain.Person;
-import com.bordeauxbrothers.parkshark.person.repository.PersonRepository;
+import com.bordeauxbrothers.parkshark.person.repositories.PersonRepository;
 
 import java.util.HashMap;
 import java.util.List;
@@ -334,6 +334,87 @@ class DivisionEndToEndTest {
             assertThat(result).containsExactly(
                     expectedDivision(NAME, ORIGINAL_NAME, DIRECTOR_ID));
             assertThat(result.getFirst().get("id")).isEqualTo(createdId);
+        }
+    }
+
+    @Nested
+    class GetDivision {
+
+        private int divisionId;
+
+        @BeforeEach
+        void insertDivisionUnderTest() {
+            insertDivision(NAME, ORIGINAL_NAME, DIRECTOR_ID);
+            divisionId = divisionIdByName(NAME);
+        }
+
+        @Test
+        void withExistingId_returnsOkAndAllData() {
+            Map<String, Object> result = getDivision(divisionId);
+
+            // isEqualTo on the full map also proves no parentDivisionId key is present.
+            assertThat(result).isEqualTo(
+                    expectedDivision(NAME, ORIGINAL_NAME, DIRECTOR_ID));
+        }
+
+        @Test
+        void withSubdivision_includesParentDivisionId() {
+            insertSubDivision("ParkShark Berchem", "Berchem Parking",
+                    SECOND_DIRECTOR_ID, divisionId);
+            int subId = divisionIdByName("ParkShark Berchem");
+
+            Map<String, Object> expected = expectedDivision(
+                    "ParkShark Berchem", "Berchem Parking", SECOND_DIRECTOR_ID);
+            expected.put("parentDivisionId", divisionId);
+
+            assertThat(getDivision(subId)).isEqualTo(expected);
+        }
+
+        @Test
+        void withUnknownId_returnsNotFound() {
+            api().when().get("/division/{id}", 987654)
+                    .then().log().ifValidationFails()
+                    .statusCode(404);
+        }
+
+        @Test
+        void withNonNumericId_returnsBadRequest() {
+            api().when().get("/division/{id}", "banana")
+                    .then().log().ifValidationFails()
+                    .statusCode(400);
+        }
+
+        @Nested
+        class AccessControl {
+
+            @Test
+            void withoutCredentials_returnsUnauthorized() {
+                assertGetOneDenied(apiWithoutAuthentication(), 401);
+            }
+
+            @Test
+            void withWrongPassword_returnsUnauthorized() {
+                assertGetOneDenied(apiAs(MANAGER_EMAIL, "incorrect-password"), 401);
+            }
+
+            @Test
+            void asMember_returnsForbidden() {
+                assertGetOneDenied(apiAs(MEMBER_EMAIL, TEST_PASSWORD), 403);
+            }
+        }
+
+        private Map<String, Object> getDivision(int id) {
+            return api().when().get("/division/{id}", id)
+                    .then().log().ifValidationFails()
+                    .statusCode(200)
+                    .contentType(ContentType.JSON)
+                    .extract().jsonPath().getMap("$");
+        }
+
+        private void assertGetOneDenied(RequestSpecification request, int expectedStatus) {
+            request.when().get("/division/{id}", divisionId)
+                    .then().log().ifValidationFails()
+                    .statusCode(expectedStatus);
         }
     }
 

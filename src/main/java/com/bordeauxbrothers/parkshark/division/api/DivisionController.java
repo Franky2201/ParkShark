@@ -78,4 +78,15 @@ public class DivisionController {
         securityService.validateAuthorization(authorization, SEE_ALL_DIVISIONS);
         return divisionService.getAllDivisions();
     }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Get a single division by id")
+    @ApiResponse(responseCode = "200", description = "Division found")
+    @ApiResponse(responseCode = "404", description = "Division not found")
+    public DivisionDto getDivision(
+            @PathVariable int id,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        securityService.validateAuthorization(authorization, SEE_SPECIFIC_DIVISION);
+        return divisionService.getDivision(id);
+    }
 }
