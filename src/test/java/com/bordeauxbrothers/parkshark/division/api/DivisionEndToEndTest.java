@@ -299,13 +299,13 @@ class DivisionEndToEndTest {
 
             // THEN: controleer volledige records, ongeacht hun volgorde.
             assertThat(result).containsExactlyInAnyOrder(
-                    createRequest(NAME, ORIGINAL_NAME, DIRECTOR_ID),
-                    createRequest(
+                    expectedDivision(NAME, ORIGINAL_NAME, DIRECTOR_ID),
+                    expectedDivision(
                             "ParkShark Gent",
                             "Ghent Parking",
                             SECOND_DIRECTOR_ID
                     ),
-                    createRequest(
+                    expectedDivision(
                             "ParkShark Leuven",
                             "Leuven Parking",
                             DIRECTOR_ID
@@ -316,23 +316,130 @@ class DivisionEndToEndTest {
         @Test
         void afterCreatingDivision_returnsCreatedDivision() {
             // GIVEN: aanmaken via de echte POST-route.
-            Map<String, Object> request =
-                    createRequest(NAME, ORIGINAL_NAME, DIRECTOR_ID);
-
-            api()
+            int createdId = api()
                     .contentType(ContentType.JSON)
-                    .body(request)
+                    .body(createRequest(NAME, ORIGINAL_NAME, DIRECTOR_ID))
                     .when()
                     .post("/division")
                     .then()
                     .log().ifValidationFails()
-                    .statusCode(201);
+                    .statusCode(201)
+                    .extract()
+                    .path("id");
 
             // WHEN
             List<Map<String, Object>> result = getAllDivisions();
 
             // THEN
-            assertThat(result).containsExactly(request);
+            assertThat(result).containsExactly(
+                    expectedDivision(NAME, ORIGINAL_NAME, DIRECTOR_ID));
+            assertThat(result.getFirst().get("id")).isEqualTo(createdId);
+        }
+    }
+
+    @Nested
+    class CreateSubdivision {
+
+        private static final String SUB_NAME = "ParkShark Berchem";
+        private static final String SUB_ORIGINAL_NAME = "Berchem Parking";
+
+        private int parentId;
+
+        @BeforeEach
+        void insertParent() {
+            insertDivision(NAME, ORIGINAL_NAME, DIRECTOR_ID);
+            parentId = divisionIdByName(NAME);
+        }
+
+        @Test
+        void withExistingParent_returnsCreatedAndLinksToParent() {
+            api().contentType(ContentType.JSON)
+                    .body(createRequest(SUB_NAME, SUB_ORIGINAL_NAME, SECOND_DIRECTOR_ID))
+                    .when().post("/division/{parentId}/subdivisions", parentId)
+                    .then().log().ifValidationFails()
+                    .statusCode(201)
+                    .contentType(ContentType.JSON)
+                    .body("name", equalTo(SUB_NAME))
+                    .body("originalName", equalTo(SUB_ORIGINAL_NAME))
+                    .body("directorId", equalTo(SECOND_DIRECTOR_ID))
+                    .body("parentDivisionId", equalTo(parentId));
+
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT parent_division_id FROM parkshark.division WHERE name = ?",
+                    Integer.class, SUB_NAME)).isEqualTo(parentId);
+        }
+
+        @Test
+        void subdivisionOfASubdivision_isAllowed() {
+            insertSubDivision(SUB_NAME, SUB_ORIGINAL_NAME, DIRECTOR_ID, parentId);
+            int subId = divisionIdByName(SUB_NAME);
+
+            api().contentType(ContentType.JSON)
+                    .body(createRequest("ParkShark Zurenborg", "Zurenborg Parking", DIRECTOR_ID))
+                    .when().post("/division/{parentId}/subdivisions", subId)
+                    .then().log().ifValidationFails()
+                    .statusCode(201)
+                    .body("parentDivisionId", equalTo(subId));
+        }
+
+        @Test
+        void withUnknownParent_returnsNotFoundAndSavesNothing() {
+            Long countBefore = countAllDivisions();
+
+            api().contentType(ContentType.JSON)
+                    .body(createRequest(SUB_NAME, SUB_ORIGINAL_NAME, DIRECTOR_ID))
+                    .when().post("/division/{parentId}/subdivisions", 987654)
+                    .then().log().ifValidationFails()
+                    .statusCode(404);
+
+            assertThat(countAllDivisions()).isEqualTo(countBefore);
+        }
+
+        @Test
+        void withInvalidBody_returnsBadRequest() {
+            Long countBefore = countAllDivisions();
+
+            api().contentType(ContentType.JSON)
+                    .body(createRequest(" ", SUB_ORIGINAL_NAME, DIRECTOR_ID))
+                    .when().post("/division/{parentId}/subdivisions", parentId)
+                    .then().log().ifValidationFails()
+                    .statusCode(400);
+
+            assertThat(countAllDivisions()).isEqualTo(countBefore);
+        }
+
+        @Test
+        void withoutCredentials_returnsUnauthorized() {
+            assertCreateSubdivisionDenied(apiWithoutAuthentication(), 401);
+        }
+
+        @Test
+        void asMember_returnsForbidden() {
+            assertCreateSubdivisionDenied(apiAs(MEMBER_EMAIL, TEST_PASSWORD), 403);
+        }
+
+        @Test
+        void getAllDivisions_showsParentOnlyForSubdivisions() {
+            insertSubDivision(SUB_NAME, SUB_ORIGINAL_NAME, DIRECTOR_ID, parentId);
+
+            List<Map<String, Object>> result = getAllDivisions();
+
+            Map<String, Object> expectedSub =
+                    expectedDivision(SUB_NAME, SUB_ORIGINAL_NAME, DIRECTOR_ID);
+            expectedSub.put("parentDivisionId", parentId);
+
+            assertThat(result).containsExactlyInAnyOrder(
+                    expectedDivision(NAME, ORIGINAL_NAME, DIRECTOR_ID),
+                    expectedSub);
+        }
+
+        private void assertCreateSubdivisionDenied(RequestSpecification request, int expectedStatus) {
+            Long countBefore = countAllDivisions();
+            request.contentType(ContentType.JSON)
+                    .body(createRequest(SUB_NAME, SUB_ORIGINAL_NAME, DIRECTOR_ID))
+                    .when().post("/division/{parentId}/subdivisions", parentId)
+                    .then().log().ifValidationFails().statusCode(expectedStatus);
+            assertThat(countAllDivisions()).isEqualTo(countBefore);
         }
     }
 
@@ -437,6 +544,45 @@ class DivisionEndToEndTest {
         );
     }
 
+    private void insertSubDivision(
+            String name,
+            String originalName,
+            int directorId,
+            int parentDivisionId) {
+
+        jdbcTemplate.update("""
+                INSERT INTO parkshark.division (
+                    name,
+                    original_name,
+                    director_id,
+                    parent_division_id
+                )
+                VALUES (?, ?, ?, ?)
+                """,
+                name,
+                originalName,
+                directorId,
+                parentDivisionId
+        );
+    }
+
+    private int divisionIdByName(String name) {
+        return jdbcTemplate.queryForObject(
+                "SELECT id FROM parkshark.division WHERE name = ?",
+                Integer.class, name);
+    }
+
+    private Map<String, Object> expectedDivision(
+            String name,
+            String originalName,
+            int directorId) {
+
+        // Expected response = request data + the id the database generated.
+        Map<String, Object> expected = createRequest(name, originalName, directorId);
+        expected.put("id", divisionIdByName(name));
+        return expected;
+    }
+
     private void insertMember() {
         // USER is the member role in the supplied migrations.
         jdbcTemplate.update("""
@@ -480,6 +626,16 @@ class DivisionEndToEndTest {
     }
 
     private void deleteTestData() {
+        // Subdivisions reference their parent: unlink first, then delete.
+        jdbcTemplate.update("""
+                UPDATE parkshark.division
+                SET parent_division_id = NULL
+                WHERE director_id IN (?, ?)
+                """,
+                DIRECTOR_ID,
+                SECOND_DIRECTOR_ID
+        );
+
         jdbcTemplate.update("""
                 DELETE FROM parkshark.division
                 WHERE director_id IN (?, ?)
