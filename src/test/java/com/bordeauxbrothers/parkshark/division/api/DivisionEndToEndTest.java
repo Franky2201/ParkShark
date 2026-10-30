@@ -299,13 +299,13 @@ class DivisionEndToEndTest {
 
             // THEN: controleer volledige records, ongeacht hun volgorde.
             assertThat(result).containsExactlyInAnyOrder(
-                    createRequest(NAME, ORIGINAL_NAME, DIRECTOR_ID),
-                    createRequest(
+                    expectedDivision(NAME, ORIGINAL_NAME, DIRECTOR_ID),
+                    expectedDivision(
                             "ParkShark Gent",
                             "Ghent Parking",
                             SECOND_DIRECTOR_ID
                     ),
-                    createRequest(
+                    expectedDivision(
                             "ParkShark Leuven",
                             "Leuven Parking",
                             DIRECTOR_ID
@@ -316,23 +316,24 @@ class DivisionEndToEndTest {
         @Test
         void afterCreatingDivision_returnsCreatedDivision() {
             // GIVEN: aanmaken via de echte POST-route.
-            Map<String, Object> request =
-                    createRequest(NAME, ORIGINAL_NAME, DIRECTOR_ID);
-
-            api()
+            int createdId = api()
                     .contentType(ContentType.JSON)
-                    .body(request)
+                    .body(createRequest(NAME, ORIGINAL_NAME, DIRECTOR_ID))
                     .when()
                     .post("/division")
                     .then()
                     .log().ifValidationFails()
-                    .statusCode(201);
+                    .statusCode(201)
+                    .extract()
+                    .path("id");
 
             // WHEN
             List<Map<String, Object>> result = getAllDivisions();
 
             // THEN
-            assertThat(result).containsExactly(request);
+            assertThat(result).containsExactly(
+                    expectedDivision(NAME, ORIGINAL_NAME, DIRECTOR_ID));
+            assertThat(result.getFirst().get("id")).isEqualTo(createdId);
         }
     }
 
@@ -424,11 +425,11 @@ class DivisionEndToEndTest {
             List<Map<String, Object>> result = getAllDivisions();
 
             Map<String, Object> expectedSub =
-                    createRequest(SUB_NAME, SUB_ORIGINAL_NAME, DIRECTOR_ID);
+                    expectedDivision(SUB_NAME, SUB_ORIGINAL_NAME, DIRECTOR_ID);
             expectedSub.put("parentDivisionId", parentId);
 
             assertThat(result).containsExactlyInAnyOrder(
-                    createRequest(NAME, ORIGINAL_NAME, DIRECTOR_ID),
+                    expectedDivision(NAME, ORIGINAL_NAME, DIRECTOR_ID),
                     expectedSub);
         }
 
@@ -569,6 +570,17 @@ class DivisionEndToEndTest {
         return jdbcTemplate.queryForObject(
                 "SELECT id FROM parkshark.division WHERE name = ?",
                 Integer.class, name);
+    }
+
+    private Map<String, Object> expectedDivision(
+            String name,
+            String originalName,
+            int directorId) {
+
+        // Expected response = request data + the id the database generated.
+        Map<String, Object> expected = createRequest(name, originalName, directorId);
+        expected.put("id", divisionIdByName(name));
+        return expected;
     }
 
     private void insertMember() {

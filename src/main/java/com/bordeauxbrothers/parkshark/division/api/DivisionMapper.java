@@ -15,7 +15,7 @@ public class DivisionMapper {
     }
 
     public DivisionDto toDto(Division division) {
-        return new DivisionDto(division.getName(), division.getOriginalName(), division.getDirectorId(), division.getParentDivisionId());
+        return new DivisionDto(division.getId(), division.getName(), division.getOriginalName(), division.getDirectorId(), division.getParentDivisionId());
     }
 
     public List<DivisionDto> toDto(List<Division> divisionList) {

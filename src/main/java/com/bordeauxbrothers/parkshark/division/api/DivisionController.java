@@ -42,18 +42,30 @@ public class DivisionController {
         return divisionService.createDivision(createDivisionDto);
     }
 
-    @Operation(summary = "Create a subdivision", description = "Sometimes, a company that was bought by ParkShark, bought some companies itself. We want to be able to express that in our application by creating subdivisions.")
+    @Operation(
+            summary = "Create a subdivision",
+            description = """
+                    Creates a new division as a subdivision of an existing (parent) division. 
+                    The parent division must already exist. Requires the MANAGER role.
+                    """)
     @ApiResponse(responseCode = "201", description = "Subdivision created")
-    @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
-    @ApiResponse(responseCode = "404", description = "No division found", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "400", description = "Invalid request body (e.g. blank name or original name)",
+            content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "401", description = "Missing or invalid credentials",
+            content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "403", description = "Authenticated, but not allowed to create subdivisions",
+            content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "404", description = "Parent division not found",
+            content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
     @PostMapping(path = "/{parentDivisionId}/subdivisions", consumes = "application/json", produces = "application/json")
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "basicAuth")
     public DivisionDto createSubDivision(
             @Parameter(hidden = true)
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @Valid @RequestBody CreateDivisionDto createDivisionDto,
-            @PathVariable int parentDivisionId ) {
+            @Parameter(description = "Id of the existing parent division", example = "1")
+            @PathVariable int parentDivisionId,
+            @Valid @RequestBody CreateDivisionDto createDivisionDto) {
         securityService.validateAuthorization(authorization, CREATE_SUB_DIVISION);
         return divisionService.createSubDivision(parentDivisionId, createDivisionDto);
     }
