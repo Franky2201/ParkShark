@@ -1,4 +1,4 @@
-package com.bordeauxbrothers.parkshark.person.domain;
+package com.bordeauxbrothers.parkshark.person.api;
 
 import com.bordeauxbrothers.parkshark.person.service.PersonService;
 import com.bordeauxbrothers.parkshark.person.service.dtos.AddMemberDTO;
