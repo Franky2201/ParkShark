@@ -4,7 +4,7 @@ import com.bordeauxbrothers.parkshark.common.exception.ForbiddenException;
 import com.bordeauxbrothers.parkshark.common.exception.UnauthorizedException;
 import com.bordeauxbrothers.parkshark.person.domain.Person;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Feature;
-import com.bordeauxbrothers.parkshark.person.repository.PersonRepository;
+import com.bordeauxbrothers.parkshark.person.repositories.PersonRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
