@@ -1,6 +1,8 @@
 package com.bordeauxbrothers.parkshark.person.domain.persondetails;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 @Entity
 public class LicensePlate {
@@ -8,8 +10,10 @@ public class LicensePlate {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
     @Column(name = "number")
+    @NotBlank
     private String number;
     @Column(name = "country")
+    @NotBlank
     private String country;
 
     public LicensePlate(String number, String country) {
