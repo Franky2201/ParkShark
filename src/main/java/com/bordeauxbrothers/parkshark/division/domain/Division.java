@@ -59,7 +59,28 @@ public class Division {
         return subdivisions;
     }
 
+    /**
+     * @return the id of the parent division, or {@code null} for a top-level division.
+     */
+    public Integer getParentDivisionId() {
+        return parentDivision == null ? null : parentDivision.getId();
+    }
+
+    public boolean isSubdivision() {
+        return parentDivision != null;
+    }
+
+    /**
+     * Makes {@code division} a subdivision of this division.
+     * Keeps both sides of the bidirectional relation in sync.
+     */
     public void addSubdivision(Division division) {
+        if (division == null) {
+            throw new IllegalArgumentException("subdivision should not be null");
+        }
+        if (division == this) {
+            throw new IllegalArgumentException("a division cannot be its own subdivision");
+        }
         subdivisions.add(division);
         division.parentDivision = this;
     }
