@@ -1,12 +1,17 @@
 package com.bordeauxbrothers.parkshark.division.api.dto;
 
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-public record DivisionDto(
-        @NotBlank(message = "division name should not be blank") String name,
-        @NotBlank(message = "division original name should not be blank") String originalName,
-        @NotNull(message = "division should have a director") int directorId
+/**
+ * Response DTO for a division.
+ * {@code parentDivisionId} is only present in the JSON for subdivisions.
+ */
+public record DivisionDto(String name,
+                          String originalName,
+                          int directorId,
+                          @JsonInclude(JsonInclude.Include.NON_NULL) Integer parentDivisionId
 ) {
 }
