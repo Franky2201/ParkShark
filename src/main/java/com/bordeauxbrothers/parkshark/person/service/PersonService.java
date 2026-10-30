@@ -1,6 +1,6 @@
 package com.bordeauxbrothers.parkshark.person.service;
 
-import com.bordeauxbrothers.parkshark.common.exception.EmailAlreadyInUseException;
+import com.bordeauxbrothers.parkshark.person.exception.EmailAlreadyInUseException;
 import com.bordeauxbrothers.parkshark.person.domain.Member;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Address;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.LicensePlate;

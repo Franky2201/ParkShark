@@ -1,7 +1,7 @@
 package com.bordeauxbrothers.parkshark.common.security;
 
-import com.bordeauxbrothers.parkshark.common.exception.ForbiddenException;
-import com.bordeauxbrothers.parkshark.common.exception.UnauthorizedException;
+import com.bordeauxbrothers.parkshark.common.security.exception.ForbiddenException;
+import com.bordeauxbrothers.parkshark.common.security.exception.UnauthorizedException;
 import com.bordeauxbrothers.parkshark.person.domain.Person;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Feature;
 import com.bordeauxbrothers.parkshark.person.repositories.PersonRepository;
