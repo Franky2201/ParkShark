@@ -15,6 +15,13 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import com.bordeauxbrothers.parkshark.person.domain.Manager;
+import com.bordeauxbrothers.parkshark.person.domain.Member;
+import com.bordeauxbrothers.parkshark.person.domain.Person;
+import com.bordeauxbrothers.parkshark.person.repository.PersonRepository;
 
 import java.util.HashMap;
 import java.util.List;
@@ -35,10 +42,26 @@ import static org.hamcrest.Matchers.equalTo;
         }
 )
 @ActiveProfiles("test")
+@Execution(ExecutionMode.SAME_THREAD)
 class DivisionEndToEndTest {
 
     private static final int DIRECTOR_ID = 900001;
     private static final int SECOND_DIRECTOR_ID = 900002;
+
+    private static final int MEMBER_ID = 900003;
+    private static final int MEMBER_ADDRESS_ID = 900003;
+    private static final int MEMBER_POSTAL_CODE_ID = 900003;
+    private static final int MEMBER_PLATE_ID = 900003;
+    private static final String MANAGER_EMAIL =
+            "director-" + DIRECTOR_ID + "@division-test.example";
+    private static final String MEMBER_EMAIL = "arya@division-test.example";
+    private static final String TEST_PASSWORD = "Winterfell123!";
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private PersonRepository personRepository;
 
     private static final String NAME = "ParkShark Antwerpen";
     private static final String ORIGINAL_NAME = "Antwerp Parking";
@@ -61,6 +84,7 @@ class DivisionEndToEndTest {
 
         insertDirector(DIRECTOR_ID, "Ned", "Stark");
         insertDirector(SECOND_DIRECTOR_ID, "Tyrion", "Lannister");
+        insertMember();
     }
 
     @AfterEach
@@ -69,8 +93,77 @@ class DivisionEndToEndTest {
         deleteTestData();
     }
 
+    @Test
+    void seededUsers_canBeLoadedAsTheirConcretePersonTypes() {
+        Person manager = personRepository.findByEmail(MANAGER_EMAIL)
+                .orElseThrow(() ->
+                        new AssertionError("Manager-testgebruiker ontbreekt"));
+
+        Person member = personRepository.findByEmail(MEMBER_EMAIL)
+                .orElseThrow(() ->
+                        new AssertionError("Member-testgebruiker ontbreekt"));
+
+        assertThat(manager).isInstanceOf(Manager.class);
+        assertThat(member).isInstanceOf(Member.class);
+
+        assertThat(passwordEncoder.matches(
+                TEST_PASSWORD, manager.getPasswordHash()
+        )).isTrue();
+
+        assertThat(passwordEncoder.matches(
+                TEST_PASSWORD, member.getPasswordHash()
+        )).isTrue();
+    }
+
     @Nested
     class CreateDivision {
+
+        @Test
+        void asManager_canAssignAnotherDirector() {
+            api().contentType(ContentType.JSON)
+                    .body(createRequest(NAME, ORIGINAL_NAME, SECOND_DIRECTOR_ID))
+                    .when().post("/division")
+                    .then().log().ifValidationFails()
+                    .statusCode(201)
+                    .body("directorId", equalTo(SECOND_DIRECTOR_ID));
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT director_id FROM parkshark.division WHERE name = ?",
+                    Integer.class, NAME)).isEqualTo(SECOND_DIRECTOR_ID);
+        }
+
+
+        @Nested
+        class AccessControl {
+
+            @Test
+            void withoutCredentials_returnsUnauthorized() {
+                assertCreateDenied(apiWithoutAuthentication(), 401);
+            }
+
+            @Test
+            void withWrongPassword_returnsUnauthorized() {
+                assertCreateDenied(apiAs(MANAGER_EMAIL, "incorrect-password"), 401);
+            }
+
+            @Test
+            void withUnknownEmail_returnsUnauthorized() {
+                assertCreateDenied(apiAs("missing@division-test.example", TEST_PASSWORD), 401);
+            }
+
+            @ParameterizedTest
+            @ValueSource(strings = {"Bearer token", "Basic !!!", "Basic bm9jb2xvbg=="})
+            void withMalformedHeader_returnsUnauthorized(String header) {
+                assertCreateDenied(apiWithoutAuthentication()
+                        .header("Authorization", header), 401);
+            }
+
+            @Test
+            void asMember_returnsForbidden() {
+                // Correct credentials, but no manager permissions.
+                assertCreateDenied(apiAs(MEMBER_EMAIL, TEST_PASSWORD), 403);
+            }
+        }
+
 
         @Test
         void withValidRequest_returnsCreatedAndSavesDivision() {
@@ -146,6 +239,39 @@ class DivisionEndToEndTest {
     @Nested
     class GetAllDivisions {
 
+        @Nested
+        class AccessControl {
+
+            @Test
+            void withoutCredentials_returnsUnauthorized() {
+                assertGetDenied(apiWithoutAuthentication(), 401);
+            }
+
+            @Test
+            void withWrongPassword_returnsUnauthorized() {
+                assertGetDenied(apiAs(MANAGER_EMAIL, "incorrect-password"), 401);
+            }
+
+            @Test
+            void withUnknownEmail_returnsUnauthorized() {
+                assertGetDenied(apiAs("missing@division-test.example", TEST_PASSWORD), 401);
+            }
+
+            @ParameterizedTest
+            @ValueSource(strings = {"Bearer token", "Basic !!!", "Basic bm9jb2xvbg=="})
+            void withMalformedHeader_returnsUnauthorized(String header) {
+                assertGetDenied(apiWithoutAuthentication()
+                        .header("Authorization", header), 401);
+            }
+
+            @Test
+            void asMember_returnsForbidden() {
+                // Correct credentials, but no manager permissions.
+                assertGetDenied(apiAs(MEMBER_EMAIL, TEST_PASSWORD), 403);
+            }
+        }
+
+
         @Test
         void withoutDivisions_returnsOkAndEmptyList() {
             List<Map<String, Object>> result = getAllDivisions();
@@ -211,6 +337,14 @@ class DivisionEndToEndTest {
     }
 
     private RequestSpecification api() {
+        return apiAs(MANAGER_EMAIL, TEST_PASSWORD);
+    }
+
+    private RequestSpecification apiAs(String email, String password) {
+        return apiWithoutAuthentication().auth().preemptive().basic(email, password);
+    }
+
+    private RequestSpecification apiWithoutAuthentication() {
         return given()
                 .baseUri("http://localhost")
                 .port(port)
@@ -279,7 +413,7 @@ class DivisionEndToEndTest {
                 firstName,
                 lastName,
                 "director-" + id + "@division-test.example",
-                "unused-test-password-hash",
+                passwordEncoder.encode(TEST_PASSWORD),
                 "MANAGER"
         );
     }
@@ -303,6 +437,48 @@ class DivisionEndToEndTest {
         );
     }
 
+    private void insertMember() {
+        // USER is the member role in the supplied migrations.
+        jdbcTemplate.update("""
+                INSERT INTO parkshark.postal_code (id, zip_code, label)
+                VALUES (?, '9000', 'Division E2E City')
+                """, MEMBER_POSTAL_CODE_ID);
+        jdbcTemplate.update("""
+                INSERT INTO parkshark.address (id, street, number, postal_code_id)
+                VALUES (?, 'Teststraat', '1', ?)
+                """, MEMBER_ADDRESS_ID, MEMBER_POSTAL_CODE_ID);
+        jdbcTemplate.update("""
+                INSERT INTO parkshark.license_plate (id, number, country)
+                VALUES (?, 'E2E-DIV-003', 'Belgium')
+                """, MEMBER_PLATE_ID);
+        jdbcTemplate.update("""
+                INSERT INTO parkshark.person (
+                    id, first_name, last_name, email, password_hash,
+                    registration_date, role, address_id, phone_number,
+                    license_plate_id, membership
+                ) VALUES (?, 'Arya', 'Stark', ?, ?, CURRENT_DATE,
+                          'USER', ?, '+32470000003', ?, 'BRONZE')
+                """, MEMBER_ID, MEMBER_EMAIL, passwordEncoder.encode(TEST_PASSWORD),
+                MEMBER_ADDRESS_ID, MEMBER_PLATE_ID);
+    }
+
+    private void assertCreateDenied(RequestSpecification request, int expectedStatus) {
+        Long countBefore = countAllDivisions();
+        // Valid body: security is checked inside the controller, after DTO validation.
+        request.contentType(ContentType.JSON)
+                .body(createRequest(NAME, ORIGINAL_NAME, DIRECTOR_ID))
+                .when().post("/division")
+                .then().log().ifValidationFails().statusCode(expectedStatus);
+        assertThat(countAllDivisions()).isEqualTo(countBefore);
+    }
+
+    private void assertGetDenied(RequestSpecification request, int expectedStatus) {
+        insertDivision(NAME, ORIGINAL_NAME, DIRECTOR_ID);
+        request.when().get("/division")
+                .then().log().ifValidationFails().statusCode(expectedStatus);
+        assertThat(countAllDivisions()).isEqualTo(1L);
+    }
+
     private void deleteTestData() {
         jdbcTemplate.update("""
                 DELETE FROM parkshark.division
@@ -314,11 +490,15 @@ class DivisionEndToEndTest {
 
         jdbcTemplate.update("""
                 DELETE FROM parkshark.person
-                WHERE id IN (?, ?)
+                WHERE id IN (?, ?, ?)
                 """,
                 DIRECTOR_ID,
-                SECOND_DIRECTOR_ID
+                SECOND_DIRECTOR_ID,
+                MEMBER_ID
         );
+        jdbcTemplate.update("DELETE FROM parkshark.address WHERE id = ?", MEMBER_ADDRESS_ID);
+        jdbcTemplate.update("DELETE FROM parkshark.license_plate WHERE id = ?", MEMBER_PLATE_ID);
+        jdbcTemplate.update("DELETE FROM parkshark.postal_code WHERE id = ?", MEMBER_POSTAL_CODE_ID);
     }
 
     private Long countAllDivisions() {
