@@ -97,6 +97,19 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
+     * Handles a request that doesn't have the required authorization
+     * (e.g. a member who isn't logged in, or doesn't have the right role to perform an action).
+     *
+     * @param ex  the exception that was thrown
+     * @param req the current request
+     * @return a 401 Unauthorized {@code ProblemDetail}
+     */
+    @ExceptionHandler(UnauthorizedException.class)
+    public ProblemDetail handleUnauthorized(UnauthorizedException ex, HttpServletRequest req) {
+        return problem(HttpStatus.UNAUTHORIZED, ex, req);
+    }
+
+    /**
      * Fallback for any {@link ParkSharkException} subclass that has no dedicated handler.
      * <p>More specific handlers always take precedence. If this one fires, a new exception
      * type was probably added without a mapping, so consider adding a dedicated handler.</p>
