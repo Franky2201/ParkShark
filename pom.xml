@@ -43,6 +43,13 @@
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>3.2.0</version>
         </dependency>
+        <!-- Source: https://mvnrepository.com/artifact/org.springframework.security/spring-security-crypto -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+            <version>7.2.0-RC1</version>
+            <scope>compile</scope>
+        </dependency>
 
         <dependency>
             <groupId>com.h2database</groupId>

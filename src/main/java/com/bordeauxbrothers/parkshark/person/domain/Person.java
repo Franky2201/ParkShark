@@ -1,5 +1,6 @@
 package com.bordeauxbrothers.parkshark.person.domain;
 
+import com.bordeauxbrothers.parkshark.person.domain.persondetails.Feature;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Membership;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Name;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Role;
@@ -75,4 +76,7 @@ public abstract class Person {
         return role;
     }
 
+    public boolean canHaveAccessTo(Feature feature){
+        return this.role.hasFeature(feature);
+    }
 }
