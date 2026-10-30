@@ -75,7 +75,7 @@
 ### Package Structure (Package-by-Feature + 4 Internal Layers)
 Base package: `com.switchfully.parkshark`
 
-Each domain feature (`division`, `parkinglot`, `member`, `allocation`, `invoice`) contains 4 sub-packages (`api`, `service`, `domain`, `exception`), supplemented by a shared `common` package:
+Each domain feature (`division`, `parkingLot`, `member`, `allocation`, `invoice`) contains 4 sub-packages (`api`, `service`, `domain`, `exception`), supplemented by a shared `common` package:
 
 ```text
 com.switchfully.parkshark

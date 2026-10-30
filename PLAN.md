@@ -196,7 +196,7 @@
 
 ---
 
-## 4. Functional Stories — Parking Lots (`parkinglot`)
+## 4. Functional Stories — Parking Lots (`parkingLot`)
 
 ### [PL1] Create a Parking Lot
 * **Priority:** Must-Have
