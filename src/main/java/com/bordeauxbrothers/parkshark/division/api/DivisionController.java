@@ -7,6 +7,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping(path = "/division")
 public class DivisionController {
@@ -22,6 +24,11 @@ public class DivisionController {
     public DivisionDto createDivision(
             @Valid @RequestBody CreateDivisionDto createDivisionDto) {
         return divisionService.createDivision(createDivisionDto);
+    }
+
+    @GetMapping(produces = "application/json")
+    public List<DivisionDto> getAllDivisions() {
+        return divisionService.getAllDivisions();
     }
 
 }
