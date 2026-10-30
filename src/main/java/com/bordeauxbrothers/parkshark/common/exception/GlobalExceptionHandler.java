@@ -1,5 +1,8 @@
 package com.bordeauxbrothers.parkshark.common.exception;
 
+import com.bordeauxbrothers.parkshark.common.security.exception.ForbiddenException;
+import com.bordeauxbrothers.parkshark.common.security.exception.UnauthorizedException;
+import com.bordeauxbrothers.parkshark.person.exception.EmailAlreadyInUseException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
