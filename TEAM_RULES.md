@@ -22,7 +22,7 @@
 * **Team Review & Merge Sessions (Twice Daily):**
   * **Session 1:** Right before lunch (5–10 minutes)
   * **Session 2:** End of the day (5–10 minutes)
-  * **Goal:** Brief demo/walkthrough so the whole team knows what was accomplished, followed by merging reviewed PRs into `main` and verifying the CI pipeline run.
+  * **Goal:** Brief demo/walkthrough so the whole team knows what was accomplished, followed by merging reviewed PRs into `master` and verifying the CI pipeline run.
 
 ---
 
@@ -33,7 +33,7 @@
 
 ### Transition Rules
 1. **Backlog → Sprint Backlog:** Story is groomed, dependencies are clear, and it is selected during Sprint Kickoff.
-2. **Sprint Backlog → In Progress:** Claimed by a developer during Daily Stand-up (or after completing a previous story). Branch created from `main`.
+2. **Sprint Backlog → In Progress:** Claimed by a developer during Daily Stand-up (or after completing a previous story). Branch created from `master`.
 3. **In Progress → Pair Review:**
    * All functional acceptance criteria are met.
    * Flyway SQL migration added/updated (if applicable).
@@ -44,7 +44,7 @@
    * Code adheres to package structure, DTO separation, logging, and testing conventions.
 5. **PR Review → Done:**
    * Presented during the pre-lunch or end-of-day 5–10 min Team Review.
-   * PR merged into `main` and `main` CI pipeline passes.
+   * PR merged into `master` and `master` CI pipeline passes.
 
 ---
 
@@ -54,8 +54,8 @@
   * Technical / Setup: `chore/<short-description>` (e.g., `chore/flyway-setup`)
   * Bugfixes: `fix/<story-id>-<short-description>` (e.g., `fix/PSA1-capacity-check`)
 * **Continuous Integration (GitHub Actions):**
-  * Runs automatically on **every branch push** and on **pull requests / merges to `main`**.
-*  **Branches are deleted once successfuly merged with main**
+  * Runs automatically on **every branch push** and on **pull requests / merges to `master`** (the default branch).
+*  **Branches are deleted once successfuly merged with master**
 
 ---
 
@@ -70,57 +70,57 @@
   * **DDL Version Control:** Flyway (`src/main/resources/db/migration/V1__...sql`)
 * **Documentation:** OpenAPI 3 / Swagger UI (`springdoc-openapi-starter-webmvc-ui`)
 * **Logging:** SLF4J + Logback (log all errors, exceptions, illegal arguments, and unauthorized access attempts)
-* **Security:** Spring Security with HTTP Basic Authentication, RBAC (`MANAGER`, `MEMBER`), and `BCryptPasswordEncoder`
+* **Security:** HTTP Basic Authentication checked by hand in `common.security.SecurityService` (no Spring Security filter chain; only `spring-security-crypto` for `BCryptPasswordEncoder`). Every endpoint calls `securityService.validateAuthorization(authorization, Feature.X)`. RBAC lives in `Role` (`USER` = member, `MANAGER`, `ADMIN`), each role listing its allowed `Feature`s.
 
-### Package Structure (Package-by-Feature + 4 Internal Layers)
-Base package: `com.switchfully.parkshark`
+### Package Structure (Package-by-Feature + Internal Layers)
+Base package: `com.bordeauxbrothers.parkshark`
 
-Each domain feature (`division`, `parkingLot`, `member`, `allocation`, `invoice`) contains 4 sub-packages (`api`, `service`, `domain`, `exception`), supplemented by a shared `common` package:
+Each feature (`division`, `parkingLot`, `person`, `allocation`, ...) has `api`, `service`, `domain`, a repository package and, when needed, an `exception` package. Shared building blocks live in `common`.
+
+⚠️ The layout is not yet uniform across features (current state):
+
+| | `division` (and `parkingLot`) | `person` | `allocation` |
+|---|---|---|---|
+| DTOs | `api/dto` (records) | `service/dtos` (classes) | `api/dto` |
+| Mapper | `api/XMapper` | `service/mappers` | `api/XMapper` |
+| Repository | `repository/` | `repositories/` | `domain/` |
 
 ```text
-com.switchfully.parkshark
+com.bordeauxbrothers.parkshark
 ├── common
-│   ├── domain          # Shared Value Objects: Address, PostalCode, LicensePlate, PhoneNumber
-│   ├── exception       # Global @RestControllerAdvice, custom base exceptions
-│   └── security        # Spring Security Config, Basic Auth, RBAC, BCrypt setup
+│   ├── config          # OpenApiConfig, PasswordConfig (BCrypt), TimeConfiguration
+│   ├── exception       # GlobalExceptionHandler + base exceptions (ParkShark, BadRequest, ResourceNotFound, Conflict)
+│   └── security        # SecurityService (Basic Auth + Feature-based RBAC)
+│       └── exception   # UnauthorizedException (401), ForbiddenException (403)
 ├── division
-│   ├── api             # DivisionController, CreateDivisionDto, DivisionDto
-│   ├── service         # DivisionService, DivisionMapper
-│   ├── domain          # Division (Entity), DivisionRepository
-│   └── exception       # DivisionNotFoundException, DuplicateDivisionException, etc.
-├── parkinglot
-│   ├── api
-│   ├── service
-│   ├── domain
-│   └── exception
-├── member
-│   ├── api
-│   ├── service
-│   ├── domain
-│   └── exception
+│   ├── api             # DivisionController, DivisionMapper
+│   │   └── dto         # CreateDivisionDto, DivisionDto
+│   ├── service         # DivisionService
+│   ├── domain          # Division (Entity)
+│   ├── repository      # DivisionRepository
+│   └── exception       # DivisionNotFoundException
+├── parkingLot          # same layout as division
 ├── allocation
-│   ├── api
-│   ├── service
-│   ├── domain
-│   └── exception
-└── invoice
-    ├── api
-    ├── service
-    ├── domain
-    └── exception
+└── person
+    ├── api             # PersonController
+    ├── service         # PersonService, dtos/, mappers/, customvalidators/ (@AtLeastOnePhone)
+    ├── domain          # Person (single table) + Member, Manager, Admin
+    │   └── persondetails   # Address, PostalCode, LicensePlate, Name, Role, Feature, Membership
+    ├── repositories    # PersonRepository, AddressRepository, PostalCodeRepository, LicensePlateRepository
+    └── exception       # EmailAlreadyInUseException
 ```
 
 ### Layering & DTO Rules
 1. **`api` layer:**
-   * Contains `@RestController` classes and Request/Response `record` DTOs.
+   * Contains `@RestController` classes and Request/Response DTOs.
    * **Strict DTO Separation:** Always use distinct Request DTOs (`CreateXDto`) and Response DTOs (`XDto`, `XOverviewDto`). Never expose JPA entities in controllers.
 2. **`service` layer:**
-   * Contains `@Service` and `@Transactional` business logic and DTO-to-Entity mappers.
-   * **Exception Handling:** All business validation and domain checks happen in the `service` (or domain methods invoked by the service). Throw meaningful custom exceptions caught by the global `@RestControllerAdvice` (which logs the error via SLF4J and returns a clean HTTP error response).
+   * Contains `@Service` and `@Transactional` business logic.
+   * **Exception Handling:** All business validation and domain checks happen in the `service` (or domain methods invoked by the service). Throw feature-specific exceptions (in the feature's `exception` package) that extend a base exception from `common.exception` (e.g. `DivisionNotFoundException extends ResourceNotFoundException`), so `GlobalExceptionHandler` maps them to the right status, logs them via SLF4J and returns an RFC 9457 `ProblemDetail`.
 3. **`domain` layer:**
-   * Contains JPA `@Entity` classes, `@Embeddable` value objects, enums, and Spring Data `JpaRepository` interfaces.
-4. **`exception` layer:**
-   * Feature-specific runtime exceptions mapped to HTTP status codes (`400 Bad Request`, `403 Forbidden`, `404 Not Found`, `409 Conflict`).
+   * Contains JPA `@Entity` classes, `@Embeddable` value objects and enums.
+4. **Repository layer:**
+   * Spring Data `JpaRepository` interfaces.
 
 ---
 
@@ -129,6 +129,7 @@ com.switchfully.parkshark
   * Full end-to-end integration test coverage across the project using `@SpringBootTest(webEnvironment = RANDOM_PORT)`, **RestAssured**, and **H2**.
 * **Unit Tests:**
   * Written at the developer's discretion (recommended when using TDD for complex domain rules such as membership reductions, fine calculation, and invoice generation).
+  * TDD scope: write tests for the code your story implements, not for inherited classes it merely uses.
 * **Test Structure & Annotations:**
   * Use `@DisplayName` on all test classes and test methods for readable test reports.
   * Use `@Nested` classes to group test scenarios logically (e.g., `HappyPath`, `ValidationAndExceptions`, `SecurityAndAuthorization`).

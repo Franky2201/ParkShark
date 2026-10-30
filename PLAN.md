@@ -57,12 +57,12 @@
 * **Priority:** Must-Have
 * **Branch:** `chore/TECH3-common-exceptions-and-value-objects`
 * **Dependencies:** `TECH-1`
-* **Description:** Create the `common` package containing the global exception handler (with SLF4J error logging) and reusable `@Embeddable` value objects (`Address`, `PostalCode`, `LicensePlateDTO`).
+* **Description:** Create the `common` package containing the global exception handler (with SLF4J error logging) and reusable `@Embeddable` value objects (`Address`, `PostalCode`, `LicensePlate`).
 * **Subtasks:**
   - [ ] Implement `ControllerExceptionHandler` (`@RestControllerAdvice`) logging all exceptions (`logger.error(...)`) and returning structured error JSON (`timestamp`, `status`, `error`, `message`, `path`).
   - [ ] Create base exceptions: `ResourceNotFoundException` (404), `BusinessValidationException` / `IllegalArgumentException` (400), `DuplicateResourceException` (409), `ForbiddenOperationException` (403).
   - [ ] Implement `@Embeddable` `PostalCode` (`code`, `label`) and `Address` (`streetName`, `streetNumber`, `PostalCode`).
-  - [ ] Implement `@Embeddable` `LicensePlateDTO` (`plateNumber`, `issuingCountry`).
+  - [ ] Implement `@Embeddable` `LicensePlate` (`plateNumber`, `issuingCountry`).
 
 ---
 
@@ -200,53 +200,42 @@
 
 ### [PL1] Create a Parking Lot
 * **Priority:** Must-Have
-* **Branch:** `feat/PL1-create-parking-lot`
+* **Branch:** `feat/PL1-create-parkinglot`
 * **Dependencies:** `TECH-2`, `TECH-3`
 * **User Story:** As a Manager I want to create a parking lot with a category, capacity, price per hour, address, and contact person.
 * **REST Endpoint:**
-  * `POST /parking-lots` → `201 Created` (Role: `MANAGER`)
+  * `POST /parking-lots` → `201 Created` (Feature: `CREATE_PARKING_LOT`, granted to `MANAGER`)
 * **Request DTO (`CreateParkingLotDto`):**
 ```json
 {
   "name": "Central Station Underground",
-  "category": "UNDERGROUND_BUILDING",
+  "category": "UNDERGROUND",
   "maxCapacity": 250,
   "pricePerHour": 3.50,
+  "contactPersonId": 1,
+  "divisionId": 1,
   "address": {
-    "streetName": "Stationstraat",
-    "streetNumber": "10",
+    "street": "Stationstraat",
+    "number": "10",
     "postalCode": {
-      "code": "3000",
+      "zipCode": "3000",
       "label": "Leuven"
-    }
-  },
-  "contactPerson": {
-    "firstName": "Tony",
-    "lastName": "Soprano",
-    "mobilePhoneNumber": "+32470123456",
-    "telephoneNumber": null,
-    "email": "tony@parkshark.com",
-    "address": {
-      "streetName": "Meir",
-      "streetNumber": "1",
-      "postalCode": {
-        "code": "2000",
-        "label": "Antwerpen"
-      }
     }
   }
 }
 ```
 * **Domain & Service Validation Rules:**
-  * `name`, `category` (`UNDERGROUND_BUILDING`, `ABOVE_GROUND_BUILDING`), `maxCapacity` (greater than 0), `pricePerHour` (greater than or equal to 0), `address`, and `contactPerson` are required.
-  * `contactPerson.email` must be present and follow a valid email format.
-  * `contactPerson` must have **at least one** phone number (`mobilePhoneNumber` OR `telephoneNumber`; both allowed). Throw `400 Bad Request` if both are null/blank.
-  * Postal code must exist or be persisted (`code` + `label`).
+  * `name`, `category` (`UNDERGROUND`, `ABOVE_STREET`, matching the DB CHECK constraint), `maxCapacity` (greater than 0), `pricePerHour` (greater than or equal to 0), `address`, `contactPersonId` and `divisionId` are required (`400 Bad Request`).
+  * The contact person is an **existing Member** (schema V3 links `parking_lot.contact_person_id` to `person`). Unknown id → `404 Not Found`; not a Member → `400 Bad Request`.
+  * The contact person must have a valid email and **at least one** phone number (`mobileNumber` OR `phoneNumber`; both allowed), otherwise `400 Bad Request`.
+  * Parking lot `name` is unique (`409 Conflict`).
+  * Postal code is reused if (`zipCode`, `label`) already exists, otherwise persisted.
+  * New categories: add an enum constant + a Flyway migration widening `chk_parking_lot_category`.
 * **Subtasks:**
-  - [ ] Add Flyway DDL for `postal_code`, `contact_person`, and `parking_lot`.
-  - [ ] Create `ParkingLotCategory` enum, `ContactPerson`, and `ParkingLot` entities.
+  - [x] Flyway DDL for `parking_lot` (already in V1/V3, no new migration needed).
+  - [ ] Create `Category` enum and `ParkingLot` entity.
   - [ ] Implement `ParkingLotService` with contact person phone/email validation.
-  - [ ] Create `ParkingLotController` (`POST /parking-lots`) and DTOs.
+  - [ ] Create `ParkingLotController` (`POST /parking-lots`), `ParkingLotMapper` and DTOs.
   - [ ] Write RestAssured integration tests covering valid creation, missing both phone numbers, invalid email, and negative capacity.
 
 ---
@@ -299,6 +288,7 @@
 * **Branch:** `feat/DIPL1-parking-lot-division`
 * **Dependencies:** `DI1`, `PL1` (and updates `PL3` if implemented)
 * **User Story:** As a Parking Lot I want to have a Division so that I know to what division I belong.
+* **Status:** `division_id` is already NOT NULL in the schema, so the create part (`divisionId` required, unknown → `404`) is delivered with `PL1`. Remaining: the `division` info in `GET /parking-lots/{id}` (`PL3`).
 * **Impact on Endpoints:**
   * `POST /parking-lots` (`CreateParkingLotDto`) now requires `"divisionId": 1`.
   * `GET /parking-lots/{id}` (`ParkingLotDetailDto`) includes `"division": { ... }` (does **not** impact `PL2` overview).
@@ -352,7 +342,7 @@
   * `registrationDate` is set server-side using `java.time.LocalDate`.
 * **Subtasks:**
   - [ ] Add `member` table DDL in Flyway.
-  - [ ] Create `Member` entity with embedded `Address` and `LicensePlateDTO`, and `LocalDate registrationDate`.
+  - [ ] Create `Member` entity with embedded `Address` and `LicensePlate`, and `LocalDate registrationDate`.
   - [ ] Create `MemberRepository`, `MemberService`, and `MemberController` (`POST /members`).
   - [ ] Write RestAssured integration tests for valid registration and invalid/missing fields.
 
