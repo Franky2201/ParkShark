@@ -21,7 +21,7 @@ public class SecurityService {
         this.encoder = encoder;
     }
 
-    public void validateAuthorization(String authorization, Feature feature){
+    public Person validateAuthorization(String authorization, Feature feature){
         if(authorization == null || authorization.isBlank() || !authorization.startsWith("Basic ")){
             throw new UnauthorizedException();
         }
@@ -55,5 +55,7 @@ public class SecurityService {
         if (!member.canHaveAccessTo(feature)) {
             throw new ForbiddenException("You don't have the rights to access this resource.");
         }
+
+        return member;
     }
 }
