@@ -13,11 +13,11 @@ import java.util.Base64;
 
 @Service
 public class SecurityService {
-    private final PersonRepository repo;
+    private final PersonRepository personRepository;
     private final PasswordEncoder encoder;
 
-    public SecurityService(PersonRepository repo, PasswordEncoder encoder) {
-        this.repo = repo;
+    public SecurityService(PersonRepository personRepository, PasswordEncoder encoder) {
+        this.personRepository = personRepository;
         this.encoder = encoder;
     }
 
@@ -45,7 +45,7 @@ public class SecurityService {
         String email = credentials[0];
         String password = credentials[1];
 
-        Person member = repo.findByEmail(email)
+        Person member = personRepository.findByEmail(email)
                 .orElseThrow(UnauthorizedException::new);
 
         if (!encoder.matches(password, member.getPasswordHash())) {

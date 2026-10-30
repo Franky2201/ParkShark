@@ -19,15 +19,15 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class SecurityServiceTest {
-    private PersonRepository repo;
+    private PersonRepository personRepository;
     private SecurityService securityService;
     private BCryptPasswordEncoder encoder;
 
     @BeforeEach
     void setUp() {
-        repo = mock(PersonRepository.class);
+        personRepository = mock(PersonRepository.class);
         encoder = new BCryptPasswordEncoder();
-        securityService = new SecurityService(repo, encoder);
+        securityService = new SecurityService(personRepository, encoder);
     }
 
     @Test
@@ -48,7 +48,7 @@ class SecurityServiceTest {
 
     @Test
     void rejectsUnknownEmail() {
-        when(repo.findByEmail("missing@example.com")).thenReturn(Optional.empty());
+        when(personRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
 
         assertThrows(
                 UnauthorizedException.class,
@@ -67,7 +67,7 @@ class SecurityServiceTest {
                 encoder.encode("correct-password"),
                 null
         );
-        when(repo.findByEmail("manager@example.com")).thenReturn(Optional.of(manager));
+        when(personRepository.findByEmail("manager@example.com")).thenReturn(Optional.of(manager));
 
         assertThrows(
                 UnauthorizedException.class,
@@ -87,7 +87,7 @@ class SecurityServiceTest {
                 null,
                 null, null, null, null, null
         );
-        when(repo.findByEmail("member@example.com")).thenReturn(Optional.of(member));
+        when(personRepository.findByEmail("member@example.com")).thenReturn(Optional.of(member));
 
         assertThrows(
                 ForbiddenException.class,
@@ -106,7 +106,7 @@ class SecurityServiceTest {
                 encoder.encode("password"),
                 null
         );
-        when(repo.findByEmail("manager@example.com")).thenReturn(Optional.of(manager));
+        when(personRepository.findByEmail("manager@example.com")).thenReturn(Optional.of(manager));
 
         assertDoesNotThrow(() ->
                 securityService.validateAuthorization(
