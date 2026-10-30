@@ -5,12 +5,14 @@ import com.bordeauxbrothers.parkshark.division.api.DivisionMapper;
 import com.bordeauxbrothers.parkshark.division.api.dto.CreateDivisionDto;
 import com.bordeauxbrothers.parkshark.division.api.dto.DivisionDto;
 import com.bordeauxbrothers.parkshark.division.domain.Division;
+import com.bordeauxbrothers.parkshark.division.exception.DivisionNotFoundException;
 import com.bordeauxbrothers.parkshark.division.repository.DivisionRepository;
 import jakarta.validation.Valid;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -33,8 +35,7 @@ public class DivisionService {
     public DivisionDto createSubDivision(int parentDivisionId, @Valid CreateDivisionDto createDivisionDto) {
         // Look up the parent (or fail with 404)
         Division parent = divisionRepository.findById(parentDivisionId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Parent division with id " + parentDivisionId + " does not exist"));
+                .orElseThrow(() -> new DivisionNotFoundException(parentDivisionId));
 
         Division subDivision = divisionMapper.toEntity(createDivisionDto);
         parent.addSubdivision(subDivision);
@@ -46,5 +47,12 @@ public class DivisionService {
     public List<DivisionDto> getAllDivisions() {
         return divisionMapper.toDto(
                 divisionRepository.findAll());
+    }
+
+    @Transactional(readOnly = true)
+    public DivisionDto getDivision(int id) {
+        return divisionRepository.findById(id)
+                .map(divisionMapper::toDto)
+                .orElseThrow(() -> new DivisionNotFoundException(id));
     }
 }
