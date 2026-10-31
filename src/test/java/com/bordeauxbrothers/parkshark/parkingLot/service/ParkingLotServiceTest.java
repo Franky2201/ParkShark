@@ -12,7 +12,7 @@ import com.bordeauxbrothers.parkshark.person.domain.Member;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Name;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.PostalCode;
 import com.bordeauxbrothers.parkshark.person.repositories.PersonRepository;
-import com.bordeauxbrothers.parkshark.person.repositories.PostalCodeRepository;
+import com.bordeauxbrothers.parkshark.person.service.PostalCodeService;
 import com.bordeauxbrothers.parkshark.person.service.dtos.AddressDTO;
 import com.bordeauxbrothers.parkshark.person.service.dtos.PostalCodeDTO;
 import com.bordeauxbrothers.parkshark.person.service.mappers.AddressMapper;
@@ -49,7 +49,7 @@ class ParkingLotServiceTest {
     @Mock
     private PersonRepository personRepository;
     @Mock
-    private PostalCodeRepository postalCodeRepository;
+    private PostalCodeService postalCodeService;
 
     private ParkingLotService parkingLotService;
 
@@ -59,7 +59,7 @@ class ParkingLotServiceTest {
                 parkingLotRepository,
                 divisionRepository,
                 personRepository,
-                postalCodeRepository,
+                postalCodeService,
                 new ParkingLotMapper(new AddressMapper())
         );
     }
@@ -76,9 +76,8 @@ class ParkingLotServiceTest {
             Member contactPerson = contactPerson("+32475000666", null);
             when(divisionRepository.findById(DIVISION_ID)).thenReturn(Optional.of(division));
             when(personRepository.findById(CONTACT_PERSON_ID)).thenReturn(Optional.of(contactPerson));
-            when(postalCodeRepository.findByZipCodeAndLabel("1000", "Brussels")).thenReturn(Optional.empty());
-            when(postalCodeRepository.save(any(PostalCode.class)))
-                    .thenAnswer(invocation -> invocation.getArgument(0));
+            when(postalCodeService.findOrCreate(any(PostalCodeDTO.class)))
+                    .thenReturn(new PostalCode("1000", "Brussels"));
             when(parkingLotRepository.save(any(ParkingLot.class)))
                     .thenAnswer(invocation -> invocation.getArgument(0));
 

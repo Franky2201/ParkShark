@@ -9,8 +9,7 @@ import com.bordeauxbrothers.parkshark.parkingLot.repository.ParkingLotRepository
 import com.bordeauxbrothers.parkshark.person.domain.Member;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.PostalCode;
 import com.bordeauxbrothers.parkshark.person.repositories.PersonRepository;
-import com.bordeauxbrothers.parkshark.person.repositories.PostalCodeRepository;
-import com.bordeauxbrothers.parkshark.person.service.dtos.PostalCodeDTO;
+import com.bordeauxbrothers.parkshark.person.service.PostalCodeService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,34 +20,28 @@ public class ParkingLotService {
     private final ParkingLotRepository parkingLotRepository;
     private final DivisionRepository divisionRepository;
     private final PersonRepository personRepository;
-    private final PostalCodeRepository postalCodeRepository;
+    private final PostalCodeService postalCodeService;
     private final ParkingLotMapper parkingLotMapper;
 
     public ParkingLotService(ParkingLotRepository parkingLotRepository,
                              DivisionRepository divisionRepository,
                              PersonRepository personRepository,
-                             PostalCodeRepository postalCodeRepository,
+                             PostalCodeService postalCodeService,
                              ParkingLotMapper parkingLotMapper) {
         this.parkingLotRepository = parkingLotRepository;
         this.divisionRepository = divisionRepository;
         this.personRepository = personRepository;
-        this.postalCodeRepository = postalCodeRepository;
+        this.postalCodeService = postalCodeService;
         this.parkingLotMapper = parkingLotMapper;
     }
 
     public ParkingLotDto createParkingLot(CreateParkingLotDto createParkingLotDto) {
         Division division = divisionRepository.findById(createParkingLotDto.divisionId()).orElseThrow();
         Member contactPerson = (Member) personRepository.findById(createParkingLotDto.contactPersonId()).orElseThrow();
-        PostalCode postalCode = findOrCreatePostalCode(createParkingLotDto.address().getPostalCodeDTO());
+        PostalCode postalCode = postalCodeService.findOrCreate(createParkingLotDto.address().getPostalCodeDTO());
 
         return parkingLotMapper.toDto(
                 parkingLotRepository.save(
                         parkingLotMapper.toEntity(createParkingLotDto, postalCode, contactPerson, division)));
-    }
-
-    private PostalCode findOrCreatePostalCode(PostalCodeDTO postalCodeDTO) {
-        return postalCodeRepository.findByZipCodeAndLabel(postalCodeDTO.getZipCode(), postalCodeDTO.getLabel())
-                .orElseGet(() -> postalCodeRepository.save(
-                        new PostalCode(postalCodeDTO.getZipCode(), postalCodeDTO.getLabel())));
     }
 }
