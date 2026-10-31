@@ -1,6 +1,7 @@
 package com.bordeauxbrothers.parkshark.parkingLot.service;
 
 import com.bordeauxbrothers.parkshark.division.domain.Division;
+import com.bordeauxbrothers.parkshark.division.exception.DivisionNotFoundException;
 import com.bordeauxbrothers.parkshark.division.repository.DivisionRepository;
 import com.bordeauxbrothers.parkshark.parkingLot.api.ParkingLotMapper;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.CreateParkingLotDto;
@@ -31,7 +32,9 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -110,6 +113,25 @@ class ParkingLotServiceTest {
             assertThat(result.address().getNumber()).isEqualTo("12");
             assertThat(result.address().getPostalCodeDTO().getZipCode()).isEqualTo("1000");
             assertThat(result.address().getPostalCodeDTO().getLabel()).isEqualTo("Brussels");
+        }
+    }
+
+    @Nested
+    @DisplayName("Create a parking lot - Validation and exceptions")
+    class ValidationAndExceptions {
+
+        @Test
+        @DisplayName("Should throw DivisionNotFoundException and save nothing when the division does not exist")
+        void createParkingLot_whenDivisionDoesNotExist_throwsDivisionNotFoundAndSavesNothing() {
+            // Given
+            when(divisionRepository.findById(DIVISION_ID)).thenReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> parkingLotService.createParkingLot(validRequest()))
+                    .isInstanceOf(DivisionNotFoundException.class)
+                    .hasMessageContaining(String.valueOf(DIVISION_ID));
+
+            verify(parkingLotRepository, never()).save(any());
         }
     }
 
