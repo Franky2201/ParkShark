@@ -45,17 +45,17 @@ public class SecurityService {
         String email = credentials[0];
         String password = credentials[1];
 
-        Person member = personRepository.findByEmail(email)
+        Person person = personRepository.findByEmail(email)
                 .orElseThrow(UnauthorizedException::new);
 
-        if (!encoder.matches(password, member.getPasswordHash())) {
+        if (!encoder.matches(password, person.getPasswordHash())) {
             throw new UnauthorizedException();
         }
 
-        if (!member.canHaveAccessTo(feature)) {
+        if (!person.canHaveAccessTo(feature)) {
             throw new ForbiddenException("You don't have the rights to access this resource.");
         }
 
-        return member;
+        return person;
     }
 }

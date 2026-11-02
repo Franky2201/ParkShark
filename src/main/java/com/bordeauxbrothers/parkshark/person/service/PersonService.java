@@ -10,9 +10,12 @@ import com.bordeauxbrothers.parkshark.person.repositories.LicensePlateRepository
 import com.bordeauxbrothers.parkshark.person.repositories.PersonRepository;
 import com.bordeauxbrothers.parkshark.person.repositories.PostalCodeRepository;
 import com.bordeauxbrothers.parkshark.person.service.dtos.AddMemberDTO;
+import com.bordeauxbrothers.parkshark.person.service.dtos.GetAllMembersDTO;
 import com.bordeauxbrothers.parkshark.person.service.mappers.PersonMapper;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class PersonService {
@@ -72,5 +75,11 @@ public class PersonService {
         if (personRepository.findByEmail(email).isPresent()){
             throw new EmailAlreadyInUseException("Email already used");
         };
+    }
+
+    public List<GetAllMembersDTO> getAllMembers() {
+        return personRepository.getAllMembers().stream()
+                .map(personMapper::fromMemberToGetAllMembersDTO)
+                .toList();
     }
 }
