@@ -1,7 +1,5 @@
 package com.bordeauxbrothers.parkshark.division.service;
 
-import com.bordeauxbrothers.parkshark.common.exception.ResourceNotFoundException;
-import com.bordeauxbrothers.parkshark.division.api.DivisionMapper;
 import com.bordeauxbrothers.parkshark.division.api.dto.CreateDivisionDto;
 import com.bordeauxbrothers.parkshark.division.api.dto.DivisionDto;
 import com.bordeauxbrothers.parkshark.division.domain.Division;
@@ -12,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @Transactional
@@ -46,7 +43,7 @@ public class DivisionService {
     @Transactional(readOnly = true)
     public List<DivisionDto> getAllDivisions() {
         return divisionMapper.toDto(
-                divisionRepository.findAll());
+                divisionRepository.findAllBy());
     }
 
     @Transactional(readOnly = true)

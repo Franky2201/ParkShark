@@ -20,7 +20,7 @@ public class Division {
     private String originalName;
 
     @Column(name = "director_id", nullable = false)
-    private Integer directorId;
+    private int directorId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_division_id")
@@ -51,12 +51,12 @@ public class Division {
         return originalName;
     }
 
-    public Integer getDirectorId() {
+    public int getDirectorId() {
         return directorId;
     }
 
-    public List<Division> getSubdivisions() {
-        return subdivisions;
+    public Division getParentDivision() {
+        return parentDivision;
     }
 
     /**
@@ -64,6 +64,10 @@ public class Division {
      */
     public Integer getParentDivisionId() {
         return parentDivision == null ? null : parentDivision.getId();
+    }
+
+    public List<Division> getSubdivisions() {
+        return subdivisions;
     }
 
     public boolean isSubdivision() {
