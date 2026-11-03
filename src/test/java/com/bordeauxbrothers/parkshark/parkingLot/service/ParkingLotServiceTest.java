@@ -10,6 +10,7 @@ import com.bordeauxbrothers.parkshark.parkingLot.domain.Category;
 import com.bordeauxbrothers.parkshark.parkingLot.domain.ParkingLot;
 import com.bordeauxbrothers.parkshark.parkingLot.exception.ContactPersonNotFoundException;
 import com.bordeauxbrothers.parkshark.parkingLot.exception.InvalidContactPersonException;
+import com.bordeauxbrothers.parkshark.parkingLot.exception.ParkingLotNameAlreadyExistsException;
 import com.bordeauxbrothers.parkshark.parkingLot.repository.ParkingLotRepository;
 import com.bordeauxbrothers.parkshark.person.domain.Manager;
 import com.bordeauxbrothers.parkshark.person.domain.Member;
@@ -165,6 +166,21 @@ class ParkingLotServiceTest {
             assertThatThrownBy(() -> parkingLotService.createParkingLot(validRequest()))
                     .isInstanceOf(InvalidContactPersonException.class)
                     .hasMessageContaining(String.valueOf(CONTACT_PERSON_ID));
+
+            verify(parkingLotRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("Should throw ParkingLotNameAlreadyExistsException and save nothing when the name is already taken")
+        void createParkingLot_whenNameAlreadyExists_throwsNameAlreadyExistsAndSavesNothing() {
+            // Given
+            CreateParkingLotDto request = validRequest();
+            when(parkingLotRepository.existsByName(request.name())).thenReturn(true);
+
+            // When & Then
+            assertThatThrownBy(() -> parkingLotService.createParkingLot(request))
+                    .isInstanceOf(ParkingLotNameAlreadyExistsException.class)
+                    .hasMessageContaining(request.name());
 
             verify(parkingLotRepository, never()).save(any());
         }

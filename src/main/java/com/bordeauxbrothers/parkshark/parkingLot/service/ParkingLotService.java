@@ -7,8 +7,11 @@ import com.bordeauxbrothers.parkshark.parkingLot.api.ParkingLotMapper;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.CreateParkingLotDto;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.ParkingLotDto;
 import com.bordeauxbrothers.parkshark.parkingLot.exception.ContactPersonNotFoundException;
+import com.bordeauxbrothers.parkshark.parkingLot.exception.InvalidContactPersonException;
+import com.bordeauxbrothers.parkshark.parkingLot.exception.ParkingLotNameAlreadyExistsException;
 import com.bordeauxbrothers.parkshark.parkingLot.repository.ParkingLotRepository;
 import com.bordeauxbrothers.parkshark.person.domain.Member;
+import com.bordeauxbrothers.parkshark.person.domain.Person;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.PostalCode;
 import com.bordeauxbrothers.parkshark.person.repositories.PersonRepository;
 import com.bordeauxbrothers.parkshark.person.service.PostalCodeService;
@@ -38,14 +41,25 @@ public class ParkingLotService {
     }
 
     public ParkingLotDto createParkingLot(CreateParkingLotDto createParkingLotDto) {
+        if (parkingLotRepository.existsByName(createParkingLotDto.name())) {
+            throw new ParkingLotNameAlreadyExistsException(createParkingLotDto.name());
+        }
         Division division = divisionRepository.findById(createParkingLotDto.divisionId())
                 .orElseThrow(() -> new DivisionNotFoundException(createParkingLotDto.divisionId()));
-        Member contactPerson = (Member) personRepository.findById(createParkingLotDto.contactPersonId())
-                .orElseThrow(() -> new ContactPersonNotFoundException(createParkingLotDto.contactPersonId()));
+        Member contactPerson = findContactPerson(createParkingLotDto.contactPersonId());
         PostalCode postalCode = postalCodeService.findOrCreate(createParkingLotDto.address().getPostalCodeDTO());
 
         return parkingLotMapper.toDto(
                 parkingLotRepository.save(
                         parkingLotMapper.toEntity(createParkingLotDto, postalCode, contactPerson, division)));
+    }
+
+    private Member findContactPerson(int contactPersonId) {
+        Person person = personRepository.findById(contactPersonId)
+                .orElseThrow(() -> new ContactPersonNotFoundException(contactPersonId));
+        if (!(person instanceof Member member)) {
+            throw new InvalidContactPersonException(contactPersonId, "only members can be a contact person");
+        }
+        return member;
     }
 }

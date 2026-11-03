@@ -225,18 +225,20 @@
 }
 ```
 * **Domain & Service Validation Rules:**
-  * `name`, `category` (`UNDERGROUND`, `ABOVE_STREET`, matching the DB CHECK constraint), `maxCapacity` (greater than 0), `pricePerHour` (greater than or equal to 0), `address`, `contactPersonId` and `divisionId` are required (`400 Bad Request`).
+  * `name`, `category` (`UNDERGROUND`, `ABOVE_STREET`, matching the DB CHECK constraint), `maxCapacity` (greater than 0), `pricePerHour` (in euro, greater than 0, max 2 decimals), `address`, `contactPersonId` and `divisionId` are required (`400 Bad Request`).
+  * `divisionId` may point to a top-level division or a subdivision.
+  * One contact person can be shared by several parking lots.
   * The contact person is an **existing Member** (schema V3 links `parking_lot.contact_person_id` to `person`). Unknown id → `404 Not Found`; not a Member → `400 Bad Request`.
-  * The contact person must have a valid email and **at least one** phone number (`mobileNumber` OR `phoneNumber`; both allowed), otherwise `400 Bad Request`.
-  * Parking lot `name` is unique (`409 Conflict`).
+  * The contact person must have a valid email and **at least one** phone number (`mobileNumber` OR `phoneNumber`; both allowed). PL1 does **not** re-check this: it is guaranteed by `ME1`'s member registration (`@Email` + `@Pattern` and `@AtLeastOnePhone` on `AddMemberDTO`). ⚠️ The DB no longer enforces the phone rule (V6 dropped it), so relaxing the member validation would break this PL1 criterion.
+  * Parking lot `name` is unique across all parking lots (`409 Conflict`).
   * Postal code is reused if (`zipCode`, `label`) already exists, otherwise persisted.
   * New categories: add an enum constant + a Flyway migration widening `chk_parking_lot_category`.
 * **Subtasks:**
   - [x] Flyway DDL for `parking_lot` (already in V1/V3, no new migration needed).
-  - [ ] Create `Category` enum and `ParkingLot` entity.
-  - [ ] Implement `ParkingLotService` with contact person phone/email validation.
+  - [x] Create `Category` enum and `ParkingLot` entity.
+  - [ ] Implement `ParkingLotService` (division and contact person lookup, member check, postal code reuse via `PostalCodeService`).
   - [ ] Create `ParkingLotController` (`POST /parking-lots`), `ParkingLotMapper` and DTOs.
-  - [ ] Write RestAssured integration tests covering valid creation, missing both phone numbers, invalid email, and negative capacity.
+  - [ ] Write RestAssured integration tests covering valid creation, invalid input (e.g. negative capacity), and unknown division / contact person.
 
 ---
 
