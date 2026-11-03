@@ -8,7 +8,10 @@ import com.bordeauxbrothers.parkshark.parkingLot.api.dto.CreateParkingLotDto;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.ParkingLotDto;
 import com.bordeauxbrothers.parkshark.parkingLot.domain.Category;
 import com.bordeauxbrothers.parkshark.parkingLot.domain.ParkingLot;
+import com.bordeauxbrothers.parkshark.parkingLot.exception.ContactPersonNotFoundException;
+import com.bordeauxbrothers.parkshark.parkingLot.exception.InvalidContactPersonException;
 import com.bordeauxbrothers.parkshark.parkingLot.repository.ParkingLotRepository;
+import com.bordeauxbrothers.parkshark.person.domain.Manager;
 import com.bordeauxbrothers.parkshark.person.domain.Member;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Name;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.PostalCode;
@@ -130,6 +133,38 @@ class ParkingLotServiceTest {
             assertThatThrownBy(() -> parkingLotService.createParkingLot(validRequest()))
                     .isInstanceOf(DivisionNotFoundException.class)
                     .hasMessageContaining(String.valueOf(DIVISION_ID));
+
+            verify(parkingLotRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("Should throw ContactPersonNotFoundException and save nothing when the contact person does not exist")
+        void createParkingLot_whenContactPersonDoesNotExist_throwsContactPersonNotFoundAndSavesNothing() {
+            // Given
+            when(divisionRepository.findById(DIVISION_ID)).thenReturn(Optional.of(division()));
+            when(personRepository.findById(CONTACT_PERSON_ID)).thenReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> parkingLotService.createParkingLot(validRequest()))
+                    .isInstanceOf(ContactPersonNotFoundException.class)
+                    .hasMessageContaining(String.valueOf(CONTACT_PERSON_ID));
+
+            verify(parkingLotRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("Should throw InvalidContactPersonException and save nothing when the contact person is not a member")
+        void createParkingLot_whenContactPersonIsNotAMember_throwsInvalidContactPersonAndSavesNothing() {
+            // Given
+            Manager manager = new Manager(new Name("Gus", "Fring"), "gus.fring@pollos.com", "hash", LocalDate.now());
+            ReflectionTestUtils.setField(manager, "id", CONTACT_PERSON_ID);
+            when(divisionRepository.findById(DIVISION_ID)).thenReturn(Optional.of(division()));
+            when(personRepository.findById(CONTACT_PERSON_ID)).thenReturn(Optional.of(manager));
+
+            // When & Then
+            assertThatThrownBy(() -> parkingLotService.createParkingLot(validRequest()))
+                    .isInstanceOf(InvalidContactPersonException.class)
+                    .hasMessageContaining(String.valueOf(CONTACT_PERSON_ID));
 
             verify(parkingLotRepository, never()).save(any());
         }

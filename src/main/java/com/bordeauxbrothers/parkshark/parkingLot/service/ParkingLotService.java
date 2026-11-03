@@ -6,6 +6,7 @@ import com.bordeauxbrothers.parkshark.division.repository.DivisionRepository;
 import com.bordeauxbrothers.parkshark.parkingLot.api.ParkingLotMapper;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.CreateParkingLotDto;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.ParkingLotDto;
+import com.bordeauxbrothers.parkshark.parkingLot.exception.ContactPersonNotFoundException;
 import com.bordeauxbrothers.parkshark.parkingLot.repository.ParkingLotRepository;
 import com.bordeauxbrothers.parkshark.person.domain.Member;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.PostalCode;
@@ -39,7 +40,8 @@ public class ParkingLotService {
     public ParkingLotDto createParkingLot(CreateParkingLotDto createParkingLotDto) {
         Division division = divisionRepository.findById(createParkingLotDto.divisionId())
                 .orElseThrow(() -> new DivisionNotFoundException(createParkingLotDto.divisionId()));
-        Member contactPerson = (Member) personRepository.findById(createParkingLotDto.contactPersonId()).orElseThrow();
+        Member contactPerson = (Member) personRepository.findById(createParkingLotDto.contactPersonId())
+                .orElseThrow(() -> new ContactPersonNotFoundException(createParkingLotDto.contactPersonId()));
         PostalCode postalCode = postalCodeService.findOrCreate(createParkingLotDto.address().getPostalCodeDTO());
 
         return parkingLotMapper.toDto(
