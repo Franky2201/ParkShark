@@ -236,9 +236,9 @@
 * **Subtasks:**
   - [x] Flyway DDL for `parking_lot` (already in V1/V3, no new migration needed).
   - [x] Create `Category` enum and `ParkingLot` entity.
-  - [ ] Implement `ParkingLotService` (division and contact person lookup, member check, postal code reuse via `PostalCodeService`).
-  - [ ] Create `ParkingLotController` (`POST /parking-lots`), `ParkingLotMapper` and DTOs.
-  - [ ] Write RestAssured integration tests covering valid creation, invalid input (e.g. negative capacity), and unknown division / contact person.
+  - [x] Implement `ParkingLotService` (division and contact person lookup, member check, postal code reuse via `PostalCodeService`).
+  - [x] Create `ParkingLotController` (`POST /parking-lots`), `ParkingLotMapper` and DTOs.
+  - [x] Write RestAssured integration tests covering valid creation, invalid input (e.g. negative capacity), and unknown division / contact person.
 
 ---
 

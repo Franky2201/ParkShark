@@ -184,6 +184,119 @@ class ParkingLotEndToEndTest {
 
             assertThat(countParkingLots()).isZero();
         }
+
+        @Test
+        @DisplayName("Should return 400 Bad Request and save nothing when the address is missing")
+        void createParkingLot_withoutAddress_returnsBadRequestAndSavesNothing() {
+            // Given
+            Map<String, Object> request = validRequest();
+            request.remove("address");
+
+            // When & Then
+            api()
+                    .contentType(ContentType.JSON)
+                    .body(request)
+                    .when()
+                    .post("/parking-lots")
+                    .then()
+                    .log().ifValidationFails()
+                    .statusCode(400);
+
+            assertThat(countParkingLots()).isZero();
+        }
+
+        @Test
+        @DisplayName("Should return 404 Not Found and save nothing when the division does not exist")
+        void createParkingLot_withUnknownDivision_returnsNotFoundAndSavesNothing() {
+            // Given
+            Map<String, Object> request = validRequest();
+            request.put("divisionId", 987654);
+
+            // When & Then
+            api()
+                    .contentType(ContentType.JSON)
+                    .body(request)
+                    .when()
+                    .post("/parking-lots")
+                    .then()
+                    .log().ifValidationFails()
+                    .statusCode(404);
+
+            assertThat(countParkingLots()).isZero();
+        }
+
+        @Test
+        @DisplayName("Should return 409 Conflict and save nothing extra when the name is already taken")
+        @SuppressWarnings("unchecked")
+        void createParkingLot_withExistingName_returnsConflictAndSavesNothing() {
+            // Given: a first parking lot created through the real POST route
+            api()
+                    .contentType(ContentType.JSON)
+                    .body(validRequest())
+                    .when()
+                    .post("/parking-lots")
+                    .then()
+                    .log().ifValidationFails()
+                    .statusCode(201);
+
+            Map<String, Object> sameName = validRequest();
+            ((Map<String, Object>) sameName.get("address")).put("street", "Other street");
+
+            // When & Then
+            api()
+                    .contentType(ContentType.JSON)
+                    .body(sameName)
+                    .when()
+                    .post("/parking-lots")
+                    .then()
+                    .log().ifValidationFails()
+                    .statusCode(409);
+
+            assertThat(countParkingLots()).isEqualTo(1L);
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /parking-lots - Security and authorization")
+    class SecurityAndAuthorization {
+
+        @Test
+        @DisplayName("Should return 401 Unauthorized and save nothing when no credentials are provided")
+        void createParkingLot_withoutCredentials_returnsUnauthorizedAndSavesNothing() {
+            // Given
+            Map<String, Object> request = validRequest();
+
+            // When & Then
+            apiWithoutAuthentication()
+                    .contentType(ContentType.JSON)
+                    .body(request)
+                    .when()
+                    .post("/parking-lots")
+                    .then()
+                    .log().ifValidationFails()
+                    .statusCode(401);
+
+            assertThat(countParkingLots()).isZero();
+        }
+
+        @Test
+        @DisplayName("Should return 403 Forbidden and save nothing when a member tries to create a parking lot")
+        void createParkingLot_asMember_returnsForbiddenAndSavesNothing() {
+            // Given
+            Map<String, Object> request = validRequest();
+
+            // When & Then
+            apiAs(MEMBER_EMAIL, TEST_PASSWORD)
+                    .contentType(ContentType.JSON)
+                    .body(request)
+                    .when()
+                    .post("/parking-lots")
+                    .then()
+                    .log().ifValidationFails()
+                    .statusCode(403);
+
+            assertThat(countParkingLots()).isZero();
+        }
     }
 
     private Map<String, Object> validRequest() {
