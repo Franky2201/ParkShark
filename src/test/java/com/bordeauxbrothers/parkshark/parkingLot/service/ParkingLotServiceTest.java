@@ -3,7 +3,7 @@ package com.bordeauxbrothers.parkshark.parkingLot.service;
 import com.bordeauxbrothers.parkshark.division.domain.Division;
 import com.bordeauxbrothers.parkshark.division.exception.DivisionNotFoundException;
 import com.bordeauxbrothers.parkshark.division.repository.DivisionRepository;
-import com.bordeauxbrothers.parkshark.parkingLot.api.ParkingLotMapper;
+import com.bordeauxbrothers.parkshark.division.service.DivisionMapper;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.CreateParkingLotDto;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.ParkingLotDto;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.ParkingLotOverviewDto;
@@ -12,6 +12,7 @@ import com.bordeauxbrothers.parkshark.parkingLot.domain.ParkingLot;
 import com.bordeauxbrothers.parkshark.parkingLot.exception.ContactPersonNotFoundException;
 import com.bordeauxbrothers.parkshark.parkingLot.exception.InvalidContactPersonException;
 import com.bordeauxbrothers.parkshark.parkingLot.exception.ParkingLotNameAlreadyExistsException;
+import com.bordeauxbrothers.parkshark.parkingLot.exception.ParkingLotNotFoundException;
 import com.bordeauxbrothers.parkshark.parkingLot.repository.ParkingLotRepository;
 import com.bordeauxbrothers.parkshark.person.domain.Manager;
 import com.bordeauxbrothers.parkshark.person.domain.Member;
@@ -49,6 +50,8 @@ class ParkingLotServiceTest {
 
     private static final int DIVISION_ID = 1;
     private static final int CONTACT_PERSON_ID = 2;
+    private static final String TELEPHONE = "+3222000111";   // Brussels landline
+    private static final String MOBILE = "+32475000666";     // Belgian mobile
 
     @Mock
     private ParkingLotRepository parkingLotRepository;
@@ -64,7 +67,7 @@ class ParkingLotServiceTest {
 
     @BeforeEach
     void setUp() {
-        parkingLotMapper = new ParkingLotMapper(new AddressMapper());
+        parkingLotMapper = new ParkingLotMapper(new AddressMapper(), new DivisionMapper());
         parkingLotService = new ParkingLotService(
                 parkingLotRepository,
                 divisionRepository,
@@ -108,6 +111,27 @@ class ParkingLotServiceTest {
         return member;
     }
 
+    /**
+     * Builds a parking lot via the real mapper, with a fake DB id set by reflection.
+     * Category, price, address and division are fixed defaults.
+     */
+    private ParkingLot parkingLot(int id, String name, int maxCapacity, Member contactPerson) {
+        CreateParkingLotDto request = new CreateParkingLotDto(
+                name,
+                Category.UNDERGROUND,
+                maxCapacity,
+                new BigDecimal("3.50"),
+                new AddressDTO("CanterSteen", "12", new PostalCodeDTO("1000", "Brussels")),
+                CONTACT_PERSON_ID,
+                DIVISION_ID
+        );
+        ParkingLot parkingLot = parkingLotMapper.toEntity(
+                request, new PostalCode("1000", "Brussels"), contactPerson, division());
+        ReflectionTestUtils.setField(parkingLot, "id", id);
+        return parkingLot;
+    }
+
+
     @Nested
     @DisplayName("Create a parking lot - Happy path")
     class HappyPath {
@@ -149,7 +173,7 @@ class ParkingLotServiceTest {
             assertThat(result.maxCapacity()).isEqualTo(250);
             assertThat(result.pricePerHour()).isEqualByComparingTo("3.50");
             assertThat(result.contactPersonId()).isEqualTo(CONTACT_PERSON_ID);
-            assertThat(result.divisionId()).isEqualTo(DIVISION_ID);
+            assertThat(result.division().id()).isEqualTo(DIVISION_ID);
             assertThat(result.address().getStreet()).isEqualTo("CanterSteen");
             assertThat(result.address().getNumber()).isEqualTo("12");
             assertThat(result.address().getPostalCodeDTO().getZipCode()).isEqualTo("1000");
@@ -232,8 +256,8 @@ class ParkingLotServiceTest {
         void getAllParkingLots_returnsAllParkingLotsWithOverviewData() {
             // Given
             when(parkingLotRepository.findAll()).thenReturn(List.of(
-                    parkingLot(100, "Central Station Underground", 250, contactPerson("+3222000111", null)),
-                    parkingLot(101, "Grand Place Parking", 80, contactPerson("+3222000222", "+32475000666"))
+                    parkingLot(100, "Central Station Underground", 250, contactPerson(TELEPHONE, null)),
+                    parkingLot(101, "Grand Place Parking", 80, contactPerson(TELEPHONE, MOBILE))
             ));
 
             // When
@@ -247,8 +271,8 @@ class ParkingLotServiceTest {
                             ParkingLotOverviewDto::contactPersonEmail,
                             ParkingLotOverviewDto::contactPersonTelephone)
                     .containsExactly(
-                            tuple(100, "Central Station Underground", 250, "walter.white@cartel.com", "+3222000111"),
-                            tuple(101, "Grand Place Parking", 80, "walter.white@cartel.com", "+32475000666"));
+                            tuple(100, "Central Station Underground", 250, "walter.white@cartel.com", TELEPHONE),
+                            tuple(101, "Grand Place Parking", 80, "walter.white@cartel.com", MOBILE));
 
             verify(parkingLotRepository).findAll();
             verifyNoInteractions(divisionRepository, personRepository, postalCodeService);
@@ -268,11 +292,11 @@ class ParkingLotServiceTest {
         }
 
         @Test
-        @DisplayName("Should return a null telephone when the contact person only has a mobile number")
-        void getAllParkingLots_whenContactPersonHasOnlyMobile_returnsNullTelephone() {
+        @DisplayName("Should return a mobile number when the contact person only has a mobile number")
+        void getAllParkingLots_whenContactPersonHasOnlyMobile_returnsMobileNumber() {
             // Given
             when(parkingLotRepository.findAll()).thenReturn(List.of(
-                    parkingLot(100, "Central Station Underground", 250, contactPerson(null, "+32475000666"))
+                    parkingLot(100, "Central Station Underground", 250, contactPerson(null, MOBILE))
             ));
 
             // When
@@ -281,27 +305,60 @@ class ParkingLotServiceTest {
             // Then
             assertThat(result).singleElement()
                     .extracting(ParkingLotOverviewDto::contactPersonTelephone)
-                    .isEqualTo("+32475000666");
+                    .isEqualTo(MOBILE);
         }
     }
 
-    /**
-     * Builds a parking lot via the real mapper, with a fake DB id set by reflection.
-     * Category, price, address and division are fixed defaults.
-     */
-    private ParkingLot parkingLot(int id, String name, int maxCapacity, Member contactPerson) {
-        CreateParkingLotDto request = new CreateParkingLotDto(
-                name,
-                Category.UNDERGROUND,
-                maxCapacity,
-                new BigDecimal("3.50"),
-                new AddressDTO("CanterSteen", "12", new PostalCodeDTO("1000", "Brussels")),
-                CONTACT_PERSON_ID,
-                DIVISION_ID
-        );
-        ParkingLot parkingLot = parkingLotMapper.toEntity(
-                request, new PostalCode("1000", "Brussels"), contactPerson, division());
-        ReflectionTestUtils.setField(parkingLot, "id", id);
-        return parkingLot;
+    @Nested
+    @DisplayName("PL3 / DIPL1 - Get a specific parking lot")
+    class GetParkingLot {
+
+        private static final int PARKING_LOT_ID = 100;
+        private static final int UNKNOWN_PARKING_LOT_ID = 999;
+
+        @Test
+        @DisplayName("Should return all data of the parking lot, including its division")
+        void getParkingLot_whenItExists_returnsAllDataIncludingDivision() {
+            // Given
+            Member contactPerson = contactPerson(TELEPHONE, MOBILE);
+            when(parkingLotRepository.findById(PARKING_LOT_ID)).thenReturn(Optional.of(
+                    parkingLot(PARKING_LOT_ID, "Central Station Underground", 250, contactPerson)));
+
+            // When
+            ParkingLotDto result = parkingLotService.getParkingLot(PARKING_LOT_ID);
+
+            // Then
+            assertThat(result.id()).isEqualTo(PARKING_LOT_ID);
+            assertThat(result.name()).isEqualTo("Central Station Underground");
+            assertThat(result.category()).isEqualTo(Category.UNDERGROUND);
+            assertThat(result.maxCapacity()).isEqualTo(250);
+            assertThat(result.pricePerHour()).isEqualByComparingTo("3.50");
+            assertThat(result.contactPersonId()).isEqualTo(CONTACT_PERSON_ID);
+            assertThat(result.address().getStreet()).isEqualTo("CanterSteen");
+            assertThat(result.address().getNumber()).isEqualTo("12");
+            assertThat(result.address().getPostalCodeDTO().getZipCode()).isEqualTo("1000");
+            assertThat(result.address().getPostalCodeDTO().getLabel()).isEqualTo("Brussels");
+
+            assertThat(result.division()).isNotNull();
+            assertThat(result.division().id()).isEqualTo(DIVISION_ID);
+            assertThat(result.division().name()).isEqualTo("ParkShark Brussels");
+
+            verify(parkingLotRepository).findById(PARKING_LOT_ID);
+            verifyNoInteractions(divisionRepository, personRepository, postalCodeService);
+        }
+
+        @Test
+        @DisplayName("Should throw ParkingLotNotFoundException when the parking lot does not exist")
+        void getParkingLot_whenItDoesNotExist_throwsParkingLotNotFoundException() {
+            // Given
+            when(parkingLotRepository.findById(UNKNOWN_PARKING_LOT_ID)).thenReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> parkingLotService.getParkingLot(UNKNOWN_PARKING_LOT_ID))
+                    .isInstanceOf(ParkingLotNotFoundException.class)
+                    .hasMessageContaining(String.valueOf(UNKNOWN_PARKING_LOT_ID));
+
+            verifyNoInteractions(divisionRepository, personRepository, postalCodeService);
+        }
     }
 }

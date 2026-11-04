@@ -3,7 +3,6 @@ package com.bordeauxbrothers.parkshark.parkingLot.service;
 import com.bordeauxbrothers.parkshark.division.domain.Division;
 import com.bordeauxbrothers.parkshark.division.exception.DivisionNotFoundException;
 import com.bordeauxbrothers.parkshark.division.repository.DivisionRepository;
-import com.bordeauxbrothers.parkshark.parkingLot.api.ParkingLotMapper;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.CreateParkingLotDto;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.ParkingLotDto;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.ParkingLotOverviewDto;
@@ -11,6 +10,7 @@ import com.bordeauxbrothers.parkshark.parkingLot.domain.ParkingLot;
 import com.bordeauxbrothers.parkshark.parkingLot.exception.ContactPersonNotFoundException;
 import com.bordeauxbrothers.parkshark.parkingLot.exception.InvalidContactPersonException;
 import com.bordeauxbrothers.parkshark.parkingLot.exception.ParkingLotNameAlreadyExistsException;
+import com.bordeauxbrothers.parkshark.parkingLot.exception.ParkingLotNotFoundException;
 import com.bordeauxbrothers.parkshark.parkingLot.repository.ParkingLotRepository;
 import com.bordeauxbrothers.parkshark.person.domain.Member;
 import com.bordeauxbrothers.parkshark.person.domain.Person;
@@ -82,5 +82,12 @@ public class ParkingLotService {
                 .toList();
         log.debug("Retrieved {} parking lots", lots.size());
         return lots;
+    }
+
+    @Transactional(readOnly = true)
+    public ParkingLotDto getParkingLot(int id) {
+        return parkingLotRepository.findById(id)
+                .map(parkingLotMapper::toDto)
+                .orElseThrow(() -> new ParkingLotNotFoundException(id));
     }
 }
