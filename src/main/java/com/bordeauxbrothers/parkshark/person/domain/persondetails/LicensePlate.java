@@ -35,11 +35,11 @@ public class LicensePlate {
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
         LicensePlate that = (LicensePlate)o;
-        return Objects.equals(getId(), that.getId());
+        return Objects.equals(getNumber(), that.getNumber()) && Objects.equals(getCountry(), that.getCountry());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(getId());
+        return Objects.hash(getNumber(), getCountry());
     }
 }
