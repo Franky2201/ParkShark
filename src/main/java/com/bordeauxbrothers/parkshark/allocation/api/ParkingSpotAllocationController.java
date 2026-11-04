@@ -8,6 +8,7 @@ import com.bordeauxbrothers.parkshark.person.domain.Person;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import static com.bordeauxbrothers.parkshark.person.domain.persondetails.Feature.CREATE_PARKING_LOT_ALLOCATION;
@@ -26,6 +27,7 @@ public class ParkingSpotAllocationController {
 
     @PostMapping(consumes = "application/json", produces = "application/json")
     @SecurityRequirement(name = "basicAuth")
+    @ResponseStatus(HttpStatus.CREATED)
     public AllocationDto startAllocatingParkingSpot(
             @Parameter(hidden = true)
             @RequestHeader(value = "Authorization", required = false) String authorization,
