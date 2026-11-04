@@ -1,6 +1,7 @@
 package com.bordeauxbrothers.parkshark.person.domain;
 
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.*;
+import com.bordeauxbrothers.parkshark.person.exception.UnchangedMembershipException;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
@@ -72,5 +73,13 @@ public class Member extends Person {
 
     public String getOnePhoneNumber() {
         return mobileNumber == null ? phoneNumber : mobileNumber;
+    }
+
+    public void setMembership(Membership membership) {
+        if (this.membership != membership) {
+            this.membership = membership;
+        } else {
+            throw new UnchangedMembershipException(String.format("Membership hasn't changed. Your membership was already: %s.", membership.getLabel()));
+        }
     }
 }
