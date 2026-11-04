@@ -8,6 +8,7 @@ import com.bordeauxbrothers.parkshark.person.domain.persondetails.Address;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.LicensePlate;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.PostalCode;
 import com.bordeauxbrothers.parkshark.person.exception.InvalidMembershipException;
+import com.bordeauxbrothers.parkshark.person.exception.NotExistingUserException;
 import com.bordeauxbrothers.parkshark.person.repositories.AddressRepository;
 import com.bordeauxbrothers.parkshark.person.repositories.LicensePlateRepository;
 import com.bordeauxbrothers.parkshark.person.repositories.PersonRepository;
@@ -103,5 +104,10 @@ public class PersonService {
         Member member = (Member) user;
         member.setMembership(requested);
         personRepository.save(member);
+    }
+
+    public Member getMember(int id) {
+        return personRepository.findMemberById(id)
+                .orElseThrow(() -> new NotExistingUserException("Member with id " + id + " not found"));
     }
 }

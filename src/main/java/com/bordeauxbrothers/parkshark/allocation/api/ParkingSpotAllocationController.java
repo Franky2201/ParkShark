@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,6 +39,7 @@ public class ParkingSpotAllocationController {
 
     @PostMapping(consumes = "application/json", produces = "application/json")
     @SecurityRequirement(name = "basicAuth")
+    @ResponseStatus(HttpStatus.CREATED)
     @Operation(
             summary = "Start a parking spot allocation",
             description = """
@@ -76,7 +78,7 @@ public class ParkingSpotAllocationController {
             )
     )
     @ApiResponse(
-            responseCode = "200",
+            responseCode = "201",
             description = "Allocation started successfully.",
             content = @Content(
                     mediaType = "application/json",

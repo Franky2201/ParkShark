@@ -4,6 +4,7 @@ import com.bordeauxbrothers.parkshark.common.security.exception.ForbiddenExcepti
 import com.bordeauxbrothers.parkshark.common.security.exception.UnauthorizedException;
 import com.bordeauxbrothers.parkshark.person.exception.EmailAlreadyInUseException;
 import com.bordeauxbrothers.parkshark.person.exception.InvalidMembershipException;
+import com.bordeauxbrothers.parkshark.person.exception.NotExistingUserException;
 import com.bordeauxbrothers.parkshark.person.exception.UnchangedMembershipException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.jspecify.annotations.NonNull;
@@ -130,7 +131,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(EmailAlreadyInUseException.class)
     public ProblemDetail handleEmailAlreadyInUse(EmailAlreadyInUseException ex, HttpServletRequest req) {
-        return problem(HttpStatus.BAD_REQUEST, ex, req);
+        return problem(HttpStatus.CONFLICT, ex, req);
+    }
+
+    @ExceptionHandler(NotExistingUserException.class)
+    public ProblemDetail handleNotExistingUser(NotExistingUserException ex, HttpServletRequest req) {
+        return problem(HttpStatus.NOT_FOUND, ex, req);
     }
 
     @ExceptionHandler(UnchangedMembershipException.class)
