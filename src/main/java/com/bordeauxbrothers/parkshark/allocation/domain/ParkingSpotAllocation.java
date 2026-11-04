@@ -6,6 +6,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
+import java.time.Clock;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Objects;
 
@@ -117,6 +119,19 @@ public class ParkingSpotAllocation {
 
     public OffsetDateTime getEndTime() {
         return endTime;
+    }
+
+    public Duration getDuration(OffsetDateTime referenceTime) {
+        OffsetDateTime end = endTime != null
+                ? endTime
+                : referenceTime;
+
+        Duration duration = Duration.between(startTime, end);
+        if (duration.isNegative()) {
+            throw new IllegalStateException("Allocation " + id + " ends before it starts");
+        }
+
+        return duration;
     }
 
     public AllocationStatus getStatus() {
