@@ -4,6 +4,7 @@ import com.bordeauxbrothers.parkshark.allocation.api.ParkingSpotAllocationMapper
 import com.bordeauxbrothers.parkshark.allocation.api.dto.AllocationDto;
 import com.bordeauxbrothers.parkshark.allocation.api.dto.StartAllocationDto;
 import com.bordeauxbrothers.parkshark.allocation.domain.ParkingSpotAllocationRepository;
+import com.bordeauxbrothers.parkshark.common.exception.BadRequestException;
 import com.bordeauxbrothers.parkshark.person.domain.Member;
 import com.bordeauxbrothers.parkshark.person.domain.Person;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Membership;
@@ -29,7 +30,8 @@ public class ParkingSpotAllocationService {
     }
 
     public AllocationDto startAllocatingParkingSpot(@Valid StartAllocationDto startAllocationDto, Person user) {
-        Member member = (Member) user;
+        if (!(user instanceof Member member))
+            throw new BadRequestException("user is not a member");
         if (member.getMembership() != Membership.GOLD &&
                 !(member.getLicensePlate().equals(startAllocationDto.licencePlate()))) {
             throw new IllegalArgumentException("Licence plate has to match member if membership is not Gold");
