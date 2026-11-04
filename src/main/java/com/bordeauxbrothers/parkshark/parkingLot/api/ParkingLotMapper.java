@@ -3,6 +3,7 @@ package com.bordeauxbrothers.parkshark.parkingLot.api;
 import com.bordeauxbrothers.parkshark.division.domain.Division;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.CreateParkingLotDto;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.ParkingLotDto;
+import com.bordeauxbrothers.parkshark.parkingLot.api.dto.ParkingLotOverviewDto;
 import com.bordeauxbrothers.parkshark.parkingLot.domain.ParkingLot;
 import com.bordeauxbrothers.parkshark.person.domain.Member;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.PostalCode;
@@ -33,5 +34,14 @@ public class ParkingLotMapper {
                 parkingLot.getContactPerson().getId(),
                 parkingLot.getDivision().getId(),
                 addressMapper.toDto(parkingLot.getAddress()));
+    }
+
+    public ParkingLotOverviewDto toOverviewDto(ParkingLot parkingLot) {
+        return new ParkingLotOverviewDto(
+                parkingLot.getId(),
+                parkingLot.getName(),
+                parkingLot.getMaxCapacity(),
+                parkingLot.getContactPerson().getEmail(),
+                parkingLot.getContactPerson().getOnePhoneNumber());
     }
 }

@@ -28,8 +28,7 @@ import java.util.stream.Stream;
 
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.*;
 
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -43,7 +42,7 @@ import static org.hamcrest.Matchers.notNullValue;
 )
 @ActiveProfiles("test")
 @Execution(ExecutionMode.SAME_THREAD)
-@DisplayName("PL1 - ParkingLot - End-to-End Tests")
+@DisplayName("PL1 & PL2 - ParkingLot - End-to-End Tests")
 class ParkingLotEndToEndTest {
 
     private static final int MANAGER_ID = 900101;
@@ -299,6 +298,84 @@ class ParkingLotEndToEndTest {
         }
     }
 
+    @Nested
+    @DisplayName("GET /parking-lots - Happy path")
+    class GetAllHappyPath {
+
+        @Test
+        @DisplayName("Should return 200 OK with the overview data of every parking lot")
+        void getAllParkingLots_returnsOkWithOverviewData() {
+            // Given
+            createParkingLot(NAME, 250);
+            createParkingLot("Grand Place Parking", 80);
+
+            // When & Then
+            api()
+                    .when()
+                    .get("/parking-lots")
+                    .then()
+                    .log().ifValidationFails()
+                    .statusCode(200)
+                    .contentType(ContentType.JSON)
+                    .body("name", hasItems(NAME, "Grand Place Parking"))
+                    .body("find { it.name == '" + NAME + "' }.id", notNullValue())
+                    .body("find { it.name == '" + NAME + "' }.capacity", equalTo(250))
+                    .body("find { it.name == '" + NAME + "' }.contactPersonEmail", equalTo(MEMBER_EMAIL))
+                    .body("find { it.name == '" + NAME + "' }.contactPersonTelephone", equalTo("+32475000666"))
+                    .body("find { it.name == 'Grand Place Parking' }.capacity", equalTo(80))
+                    .body("find { it.name == '" + NAME + "' }.keySet()", containsInAnyOrder(
+                            "id", "name", "capacity", "contactPersonEmail", "contactPersonTelephone"));
+        }
+
+        @Test
+        @DisplayName("Should return every parking lot in the database")
+        void getAllParkingLots_returnsAsManyParkingLotsAsInDatabase() {
+            // Given
+            createParkingLot(NAME, 250);
+            createParkingLot("Grand Place Parking", 80);
+            int totalInDatabase = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM parkshark.parking_lot", Integer.class);
+
+            // When & Then
+            api()
+                    .when()
+                    .get("/parking-lots")
+                    .then()
+                    .log().ifValidationFails()
+                    .statusCode(200)
+                    .body("size()", equalTo(totalInDatabase));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /parking-lots - Security and authorization")
+    class GetAllSecurityAndAuthorization {
+
+        @Test
+        @DisplayName("Should return 401 Unauthorized when no credentials are provided")
+        void getAllParkingLots_withoutCredentials_returnsUnauthorized() {
+            // When & Then
+            apiWithoutAuthentication()
+                    .when()
+                    .get("/parking-lots")
+                    .then()
+                    .log().ifValidationFails()
+                    .statusCode(401);
+        }
+
+        @Test
+        @DisplayName("Should return 403 Forbidden when a member tries to see all parking lots")
+        void getAllParkingLots_asMember_returnsForbidden() {
+            // When & Then
+            apiAs(MEMBER_EMAIL, TEST_PASSWORD)
+                    .when()
+                    .get("/parking-lots")
+                    .then()
+                    .log().ifValidationFails()
+                    .statusCode(403);
+        }
+    }
+
     private Map<String, Object> validRequest() {
         // HashMap allows null values for the validation tests.
         Map<String, Object> postalCode = new HashMap<>();
@@ -321,6 +398,21 @@ class ParkingLotEndToEndTest {
         return request;
     }
 
+    private void createParkingLot(String name, int maxCapacity) {
+        Map<String, Object> request = validRequest();
+        request.put("name", name);
+        request.put("maxCapacity", maxCapacity);
+
+        api()
+                .contentType(ContentType.JSON)
+                .body(request)
+                .when()
+                .post("/parking-lots")
+                .then()
+                .log().ifValidationFails()
+                .statusCode(201);
+    }
+    
     private Long countParkingLots() {
         return jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM parkshark.parking_lot WHERE division_id = ?", Long.class, DIVISION_ID);

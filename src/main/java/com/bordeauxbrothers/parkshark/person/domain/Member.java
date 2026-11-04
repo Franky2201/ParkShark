@@ -50,9 +50,27 @@ public class Member extends Person {
                 : Membership.BRONZE;
     }
 
-    public Address getAddress() { return address; }
-    public String getPhoneNumber() { return phoneNumber; }
-    public String getMobileNumber() { return mobileNumber; }
-    public LicensePlate getLicensePlate() { return licensePlate; }
-    public Membership getMembership() { return membership; }
+    public Address getAddress() {
+        return address;
     }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public String getMobileNumber() {
+        return mobileNumber;
+    }
+
+    public LicensePlate getLicensePlate() {
+        return licensePlate;
+    }
+
+    public Membership getMembership() {
+        return membership;
+    }
+
+    public String getOnePhoneNumber() {
+        return mobileNumber == null ? phoneNumber : mobileNumber;
+    }
+}

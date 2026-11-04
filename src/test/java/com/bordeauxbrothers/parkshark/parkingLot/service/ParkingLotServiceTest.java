@@ -6,6 +6,7 @@ import com.bordeauxbrothers.parkshark.division.repository.DivisionRepository;
 import com.bordeauxbrothers.parkshark.parkingLot.api.ParkingLotMapper;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.CreateParkingLotDto;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.ParkingLotDto;
+import com.bordeauxbrothers.parkshark.parkingLot.api.dto.ParkingLotOverviewDto;
 import com.bordeauxbrothers.parkshark.parkingLot.domain.Category;
 import com.bordeauxbrothers.parkshark.parkingLot.domain.ParkingLot;
 import com.bordeauxbrothers.parkshark.parkingLot.exception.ContactPersonNotFoundException;
@@ -33,14 +34,14 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.BDDAssertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("PL1 - ParkingLotService - Unit Tests")
@@ -58,17 +59,53 @@ class ParkingLotServiceTest {
     @Mock
     private PostalCodeService postalCodeService;
 
+    private ParkingLotMapper parkingLotMapper;
     private ParkingLotService parkingLotService;
 
     @BeforeEach
     void setUp() {
+        parkingLotMapper = new ParkingLotMapper(new AddressMapper());
         parkingLotService = new ParkingLotService(
                 parkingLotRepository,
                 divisionRepository,
                 personRepository,
                 postalCodeService,
-                new ParkingLotMapper(new AddressMapper())
+                parkingLotMapper
         );
+    }
+
+    private CreateParkingLotDto validRequest() {
+        return new CreateParkingLotDto(
+                "Central Station Underground",
+                Category.UNDERGROUND,
+                250,
+                new BigDecimal("3.50"),
+                new AddressDTO("CanterSteen", "12", new PostalCodeDTO("1000", "Brussels")),
+                CONTACT_PERSON_ID,
+                DIVISION_ID
+        );
+    }
+
+    private Division division() {
+        Division division = new Division("ParkShark Brussels", "Brussels Parking", 1);
+        ReflectionTestUtils.setField(division, "id", DIVISION_ID);
+        return division;
+    }
+
+    private Member contactPerson(String phoneNumber, String mobileNumber) {
+        Member member = new Member(
+                new Name("Walter", "White"),
+                "walter.white@cartel.com",
+                "weneedtocook",
+                LocalDate.now(),
+                null,
+                phoneNumber,
+                mobileNumber,
+                null,
+                null
+        );
+        ReflectionTestUtils.setField(member, "id", CONTACT_PERSON_ID);
+        return member;
     }
 
     @Nested
@@ -186,37 +223,85 @@ class ParkingLotServiceTest {
         }
     }
 
-    private CreateParkingLotDto validRequest() {
-        return new CreateParkingLotDto(
-                "Central Station Underground",
+    @Nested
+    @DisplayName("Get all parking lots")
+    class GetAllParkingLots {
+
+        @Test
+        @DisplayName("Should return all parking lots with id, name, capacity, contact email and telephone")
+        void getAllParkingLots_returnsAllParkingLotsWithOverviewData() {
+            // Given
+            when(parkingLotRepository.findAll()).thenReturn(List.of(
+                    parkingLot(100, "Central Station Underground", 250, contactPerson("+3222000111", null)),
+                    parkingLot(101, "Grand Place Parking", 80, contactPerson("+3222000222", "+32475000666"))
+            ));
+
+            // When
+            List<ParkingLotOverviewDto> result = parkingLotService.getAllParkingLots();
+
+            // Then
+            assertThat(result)
+                    .extracting(ParkingLotOverviewDto::id,
+                            ParkingLotOverviewDto::name,
+                            ParkingLotOverviewDto::capacity,
+                            ParkingLotOverviewDto::contactPersonEmail,
+                            ParkingLotOverviewDto::contactPersonTelephone)
+                    .containsExactly(
+                            tuple(100, "Central Station Underground", 250, "walter.white@cartel.com", "+3222000111"),
+                            tuple(101, "Grand Place Parking", 80, "walter.white@cartel.com", "+32475000666"));
+
+            verify(parkingLotRepository).findAll();
+            verifyNoInteractions(divisionRepository, personRepository, postalCodeService);
+        }
+
+        @Test
+        @DisplayName("Should return an empty list when there are no parking lots")
+        void getAllParkingLots_whenNoParkingLots_returnsEmptyList() {
+            // Given
+            when(parkingLotRepository.findAll()).thenReturn(List.of());
+
+            // When
+            List<ParkingLotOverviewDto> result = parkingLotService.getAllParkingLots();
+
+            // Then
+            assertThat(result).isNotNull().isEmpty();
+        }
+
+        @Test
+        @DisplayName("Should return a null telephone when the contact person only has a mobile number")
+        void getAllParkingLots_whenContactPersonHasOnlyMobile_returnsNullTelephone() {
+            // Given
+            when(parkingLotRepository.findAll()).thenReturn(List.of(
+                    parkingLot(100, "Central Station Underground", 250, contactPerson(null, "+32475000666"))
+            ));
+
+            // When
+            List<ParkingLotOverviewDto> result = parkingLotService.getAllParkingLots();
+
+            // Then
+            assertThat(result).singleElement()
+                    .extracting(ParkingLotOverviewDto::contactPersonTelephone)
+                    .isEqualTo("+32475000666");
+        }
+    }
+
+    /**
+     * Builds a parking lot via the real mapper, with a fake DB id set by reflection.
+     * Category, price, address and division are fixed defaults.
+     */
+    private ParkingLot parkingLot(int id, String name, int maxCapacity, Member contactPerson) {
+        CreateParkingLotDto request = new CreateParkingLotDto(
+                name,
                 Category.UNDERGROUND,
-                250,
+                maxCapacity,
                 new BigDecimal("3.50"),
                 new AddressDTO("CanterSteen", "12", new PostalCodeDTO("1000", "Brussels")),
                 CONTACT_PERSON_ID,
                 DIVISION_ID
         );
-    }
-
-    private Division division() {
-        Division division = new Division("ParkShark Brussels", "Brussels Parking", 1);
-        ReflectionTestUtils.setField(division, "id", DIVISION_ID);
-        return division;
-    }
-
-    private Member contactPerson(String phoneNumber, String mobileNumber) {
-        Member member = new Member(
-                new Name("Walter", "White"),
-                "walter.white@cartel.com",
-                "weneedtocook",
-                LocalDate.now(),
-                null,
-                phoneNumber,
-                mobileNumber,
-                null,
-                null
-        );
-        ReflectionTestUtils.setField(member, "id", CONTACT_PERSON_ID);
-        return member;
+        ParkingLot parkingLot = parkingLotMapper.toEntity(
+                request, new PostalCode("1000", "Brussels"), contactPerson, division());
+        ReflectionTestUtils.setField(parkingLot, "id", id);
+        return parkingLot;
     }
 }
