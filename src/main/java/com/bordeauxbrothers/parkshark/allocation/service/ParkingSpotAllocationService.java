@@ -26,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Locale;
+
 
 @Service
 public class ParkingSpotAllocationService {
@@ -122,5 +122,14 @@ public class ParkingSpotAllocationService {
                 .map(parkingSpotAllocationMapper::toDto)
                 .toList();
 
+    }
+
+    public List<AllocationDto> getAllAllocatingParkingSpotsForMemberFiltered(int id, AllocationStatus status) {
+        List<ParkingSpotAllocation> allocations = (status == null)
+                ? parkingSpotAllocationRepository.findAllByMemberId(id)
+                : parkingSpotAllocationRepository.findAllByMemberIdAndStatus(id, status);
+        return allocations.stream()
+                .map(parkingSpotAllocationMapper::toDto)
+                .toList();
     }
 }

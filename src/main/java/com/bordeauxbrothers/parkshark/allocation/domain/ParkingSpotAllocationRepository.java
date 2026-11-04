@@ -9,6 +9,8 @@ public interface ParkingSpotAllocationRepository extends JpaRepository<ParkingSp
     List<ParkingSpotAllocation> findByParkingLotId(int parkingLotId);
     List<ParkingSpotAllocation> findAllBy(Pageable pageable);
 
+    List<ParkingSpotAllocation> findAllByMemberId(Integer memberId);
+    List<ParkingSpotAllocation> findAllByMemberIdAndStatus(Integer memberId, AllocationStatus status);
     List<ParkingSpotAllocation> findByStatus(
             AllocationStatus status,
             Pageable pageable
