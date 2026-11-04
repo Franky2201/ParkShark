@@ -27,6 +27,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -51,7 +52,7 @@ import static org.hamcrest.Matchers.*;
 @Import(ParkingSpotAllocationEndToEndTest.FixedTime.class)
 @Execution(ExecutionMode.SAME_THREAD)
 class ParkingSpotAllocationEndToEndTest {
-    private static final int SUCCESS = 200;
+    private static final int SUCCESS = 201;
     // Deliberately different IDs: using memberId to look up a lot must fail.
     private static final int MEMBER = 930001;
     private static final int MANAGER = 930002;
@@ -520,6 +521,368 @@ class ParkingSpotAllocationEndToEndTest {
                     OffsetDateTime.class,
                     id
             );
+        }
+    }
+
+    @Nested
+    class GetAllAllocations {
+
+        private static final int OLDEST = 940101;
+        private static final int STOPPED = 940102;
+        private static final int INVOICED = 940103;
+        private static final int NEWEST = 940104;
+
+        @BeforeEach
+        void createAllocationsForOverview() {
+            // Insert deliberately out of chronological order.
+            // Sorting by insertion order or ID must not accidentally pass.
+            insertOverviewAllocation(NEWEST, OTHER_LOT, "ACTIVE", 1);
+            insertOverviewAllocation(STOPPED, LOT, "PASSIVE", 3);
+            insertOverviewAllocation(OLDEST, LOT, "ACTIVE", 4);
+            insertOverviewAllocation(INVOICED, OTHER_LOT, "INVOICED", 2);
+        }
+
+        @Nested
+        class DefaultOverview {
+
+            @Test
+            void withoutFiltersReturnsAllStatusesAndLots_oldestFirst() {
+                overview(Map.of())
+                        .statusCode(200)
+                        .contentType(ContentType.JSON)
+                        .body("id", contains(
+                                OLDEST, STOPPED, INVOICED, NEWEST
+                        ))
+                        .body("status", contains(
+                                "ACTIVE", "PASSIVE", "INVOICED", "ACTIVE"
+                        ))
+                        .body("parkingLotId", contains(
+                                LOT, LOT, OTHER_LOT, OTHER_LOT
+                        ));
+            }
+
+            @Test
+            void responseContainsAllocationDetails() {
+                var response = overview(Map.of())
+                        .statusCode(200)
+                        .body("[0].id", equalTo(OLDEST))
+                        .body("[0].memberId", equalTo(MEMBER))
+                        .body("[0].parkingLotId", equalTo(LOT))
+                        .body("[0].licensePlateNumber", equalTo(PLATE))
+                        .body("[0].status", equalTo("ACTIVE"))
+                        .body("[0].endTime", nullValue())
+                        .body("[1].status", equalTo("PASSIVE"))
+                        .body("[1].endTime", notNullValue())
+                        .extract();
+
+                assertThat(OffsetDateTime.parse(
+                        response.path("[0].startTime")
+                ).toInstant()).isEqualTo(NOW.minusSeconds(4 * 3600));
+
+                assertThat(OffsetDateTime.parse(
+                        response.path("[1].endTime")
+                ).toInstant()).isEqualTo(
+                        NOW.minusSeconds(3 * 3600).plusSeconds(1800)
+                );
+            }
+
+            @Test
+            void emptyDatabaseReturnsEmptyList() {
+                jdbc.update("""
+                    DELETE FROM parkshark.parking_spot_allocation
+                    WHERE parking_lot_id IN (?, ?)
+                    """, LOT, OTHER_LOT);
+
+                overview(Map.of())
+                        .statusCode(200)
+                        .body("$", hasSize(0));
+            }
+
+            @Test
+            void gettingOverviewDoesNotChangeDatabase() {
+                List<Map<String, Object>> before = allocationRows();
+
+                overview(Map.of(
+                        "status", "ACTIVE",
+                        "limit", 1,
+                        "desc", true
+                ))
+                        .statusCode(200)
+                        .body("id", contains(NEWEST));
+
+                assertThat(allocationRows()).isEqualTo(before);
+            }
+        }
+
+        @Nested
+        class StatusFiltering {
+
+            @Test
+            void activeFilterReturnsOnlyActiveAllocations() {
+                overview(Map.of("status", "ACTIVE"))
+                        .statusCode(200)
+                        .body("id", contains(OLDEST, NEWEST))
+                        .body("status", everyItem(equalTo("ACTIVE")));
+            }
+
+            @Test
+            void passiveFilterExcludesActiveAndInvoicedAllocations() {
+                overview(Map.of("status", "PASSIVE"))
+                        .statusCode(200)
+                        .body("id", contains(STOPPED))
+                        .body("status", contains("PASSIVE"));
+            }
+
+            @Test
+            void invoicedFilterReturnsOnlyInvoicedAllocations() {
+                overview(Map.of("status", "INVOICED"))
+                        .statusCode(200)
+                        .body("id", contains(INVOICED))
+                        .body("status", contains("INVOICED"));
+            }
+
+            @Test
+            void noMatchingStatusReturnsEmptyList() {
+                jdbc.update("""
+                    DELETE FROM parkshark.parking_spot_allocation
+                    WHERE id = ?
+                    """, STOPPED);
+
+                overview(Map.of("status", "PASSIVE"))
+                        .statusCode(200)
+                        .body("$", hasSize(0));
+
+                // Other allocations still exist.
+                assertThat(count()).isEqualTo(3L);
+            }
+        }
+
+        @Nested
+        class Ordering {
+
+            @Test
+            void explicitAscendingReturnsOldestFirst() {
+                overview(Map.of("desc", false))
+                        .statusCode(200)
+                        .body("id", contains(
+                                OLDEST, STOPPED, INVOICED, NEWEST
+                        ));
+            }
+
+            @Test
+            void descendingReturnsNewestFirst() {
+                overview(Map.of("desc", true))
+                        .statusCode(200)
+                        .body("id", contains(
+                                NEWEST, INVOICED, STOPPED, OLDEST
+                        ));
+            }
+
+            @Test
+            void descendingAlsoWorksWithStatusFilter() {
+                overview(Map.of(
+                        "status", "ACTIVE",
+                        "desc", true
+                ))
+                        .statusCode(200)
+                        .body("id", contains(NEWEST, OLDEST));
+            }
+
+            @Test
+            void equalStartTimesAreOrderedByIdAscending() {
+                giveActiveAllocationsSameStartTime();
+
+                overview(Map.of("status", "ACTIVE"))
+                        .statusCode(200)
+                        .body("id", contains(OLDEST, NEWEST));
+            }
+
+            @Test
+            void equalStartTimesAreOrderedByIdDescending() {
+                giveActiveAllocationsSameStartTime();
+
+                overview(Map.of(
+                        "status", "ACTIVE",
+                        "desc", true
+                ))
+                        .statusCode(200)
+                        .body("id", contains(NEWEST, OLDEST));
+            }
+
+            private void giveActiveAllocationsSameStartTime() {
+                jdbc.update("""
+                    UPDATE parkshark.parking_spot_allocation
+                    SET start_time = ?
+                    WHERE id IN (?, ?)
+                    """,
+                        OffsetDateTime.ofInstant(
+                                NOW.minusSeconds(3600),
+                                ZoneOffset.UTC
+                        ),
+                        OLDEST,
+                        NEWEST);
+            }
+        }
+
+        @Nested
+        class Limiting {
+
+            @Test
+            void limitOneReturnsFirstAllocation() {
+                overview(Map.of("limit", 1))
+                        .statusCode(200)
+                        .body("id", contains(OLDEST));
+            }
+
+            @Test
+            void limitIsAppliedAfterSorting() {
+                overview(Map.of(
+                        "limit", 2,
+                        "desc", true
+                ))
+                        .statusCode(200)
+                        .body("id", contains(NEWEST, INVOICED));
+            }
+
+            @Test
+            void limitEqualToResultCountReturnsAllResults() {
+                overview(Map.of("limit", 4))
+                        .statusCode(200)
+                        .body("id", contains(
+                                OLDEST, STOPPED, INVOICED, NEWEST
+                        ));
+            }
+
+            @Test
+            void limitLargerThanResultCountReturnsAvailableResults() {
+                overview(Map.of("limit", 100))
+                        .statusCode(200)
+                        .body("id", contains(
+                                OLDEST, STOPPED, INVOICED, NEWEST
+                        ));
+            }
+
+            @Test
+            void filteringHappensBeforeLimiting() {
+                // If the implementation limits first, STOPPED could occupy
+                // the second slot and incorrectly exclude NEWEST.
+                overview(Map.of(
+                        "status", "ACTIVE",
+                        "limit", 2
+                ))
+                        .statusCode(200)
+                        .body("id", contains(OLDEST, NEWEST));
+            }
+
+            @Test
+            void allThreeParametersWorkTogether() {
+                overview(Map.of(
+                        "status", "ACTIVE",
+                        "limit", 1,
+                        "desc", true
+                ))
+                        .statusCode(200)
+                        .body("id", contains(NEWEST))
+                        .body("status", contains("ACTIVE"));
+            }
+        }
+
+        @Nested
+        class InvalidParameters {
+
+            @ParameterizedTest
+            @ValueSource(ints = {0, -1, -100})
+            void nonPositiveLimitReturnsBadRequest(int limit) {
+                assertRejectedWithoutChanges(Map.of("limit", limit));
+            }
+
+            @ParameterizedTest
+            @ValueSource(strings = {"abc", "1.5", "2147483648"})
+            void invalidIntegerLimitReturnsBadRequest(String limit) {
+                assertRejectedWithoutChanges(Map.of("limit", limit));
+            }
+
+            @Test
+            void unknownStatusReturnsBadRequest() {
+                assertRejectedWithoutChanges(Map.of("status", "UNKNOWN"));
+            }
+
+            @Test
+            void invalidBooleanReturnsBadRequest() {
+                assertRejectedWithoutChanges(Map.of("desc", "invalid"));
+            }
+
+            private void assertRejectedWithoutChanges(
+                    Map<String, Object> parameters
+            ) {
+                List<Map<String, Object>> before = allocationRows();
+
+                overview(parameters).statusCode(400);
+
+                assertThat(allocationRows()).isEqualTo(before);
+            }
+        }
+
+        private ValidatableResponse overview(
+                Map<String, Object> parameters
+        ) {
+            // Reuse the manager created by the outer setUp().
+            String managerEmail = jdbc.queryForObject(
+                    "SELECT email FROM parkshark.person WHERE id = ?",
+                    String.class,
+                    MANAGER
+            );
+
+            return given()
+                    .baseUri("http://localhost")
+                    .port(port)
+                    .auth().preemptive().basic(managerEmail, PASSWORD)
+                    .accept(ContentType.JSON)
+                    .queryParams(parameters)
+                    .when()
+                    .get("/allocation")
+                    .then()
+                    .log().ifValidationFails();
+        }
+
+        private void insertOverviewAllocation(
+                int id,
+                int lotId,
+                String status,
+                int hoursAgo
+        ) {
+            OffsetDateTime start = OffsetDateTime.ofInstant(
+                    NOW.minusSeconds(hoursAgo * 3600L),
+                    ZoneOffset.UTC
+            );
+
+            OffsetDateTime end = status.equals("ACTIVE")
+                    ? null
+                    : start.plusMinutes(30);
+
+            jdbc.update("""
+                INSERT INTO parkshark.parking_spot_allocation (
+                    id, member_id, parking_lot_id,
+                    license_plate_number, start_time, end_time, status
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                    id,
+                    MEMBER,
+                    lotId,
+                    PLATE,
+                    start,
+                    end,
+                    status);
+        }
+
+        private List<Map<String, Object>> allocationRows() {
+            return jdbc.queryForList("""
+                SELECT *
+                FROM parkshark.parking_spot_allocation
+                WHERE parking_lot_id IN (?, ?)
+                ORDER BY id
+                """, LOT, OTHER_LOT);
         }
     }
 

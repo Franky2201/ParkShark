@@ -2,6 +2,7 @@ package com.bordeauxbrothers.parkshark.allocation.api;
 
 import com.bordeauxbrothers.parkshark.allocation.api.dto.AllocationDto;
 import com.bordeauxbrothers.parkshark.allocation.api.dto.StartAllocationDto;
+import com.bordeauxbrothers.parkshark.allocation.domain.AllocationStatus;
 import com.bordeauxbrothers.parkshark.allocation.service.ParkingSpotAllocationService;
 import com.bordeauxbrothers.parkshark.common.security.SecurityService;
 import com.bordeauxbrothers.parkshark.person.domain.Person;
@@ -14,11 +15,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.*;
 
-import static com.bordeauxbrothers.parkshark.person.domain.persondetails.Feature.CREATE_PARKING_LOT_ALLOCATION;
-import static com.bordeauxbrothers.parkshark.person.domain.persondetails.Feature.STOP_PARKING_LOT_ALLOCATION;
+import java.util.List;
+
+import static com.bordeauxbrothers.parkshark.person.domain.persondetails.Feature.*;
 
 @Tag(
         name = "Parking spot allocations",
@@ -38,6 +41,7 @@ public class ParkingSpotAllocationController {
 
     @PostMapping(consumes = "application/json", produces = "application/json")
     @SecurityRequirement(name = "basicAuth")
+    @ResponseStatus(HttpStatus.CREATED)
     @Operation(
             summary = "Start a parking spot allocation",
             description = """
@@ -152,6 +156,18 @@ public class ParkingSpotAllocationController {
             @PathVariable int id) {
         Person user = securityService.validateAuthorization(authorization, STOP_PARKING_LOT_ALLOCATION);
         return parkingSpotAllocationService.stopAllocatingParkingSpot(id, user);
+    }
+
+    @GetMapping( produces = "application/json")
+    @SecurityRequirement(name = "basicAuth")
+    public List<AllocationDto> getAllAllocatingParkingSpotsFiltered(
+            @Parameter(hidden = true)
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(name = "limit", required = false) Integer limit,
+            @RequestParam(name = "status", required = false) AllocationStatus status,
+            @RequestParam(name = "desc", required = false) boolean desc) {
+        securityService.validateAuthorization(authorization, SEE_ALL_ALLOCATIONS);
+        return parkingSpotAllocationService.getAllAllocatingParkingSpotsFiltered(limit, status, desc);
     }
 
 

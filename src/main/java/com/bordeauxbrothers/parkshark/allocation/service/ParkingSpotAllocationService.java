@@ -16,11 +16,16 @@ import com.bordeauxbrothers.parkshark.person.domain.Member;
 import com.bordeauxbrothers.parkshark.person.domain.Person;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Membership;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Locale;
 
 @Service
 public class ParkingSpotAllocationService {
@@ -87,5 +92,34 @@ public class ParkingSpotAllocationService {
         OffsetDateTime endTime = OffsetDateTime.now(clock);
         allocation.stop(endTime);
         return parkingSpotAllocationMapper.toDto(parkingSpotAllocationRepository.save(allocation));
+    }
+
+
+    public List<AllocationDto> getAllAllocatingParkingSpotsFiltered(Integer limit, AllocationStatus status, boolean desc) {
+        if (limit != null && limit <= 0) {
+            throw new BadRequestException(
+                    "Limit must be greater than zero"
+            );
+        }
+
+        Sort.Direction direction = (desc)
+                ? Sort.Direction.DESC
+                : Sort.Direction.ASC;
+
+        Sort sort = Sort.by(direction, "startTime")
+                .and(Sort.by(direction, "id"));
+
+        Pageable pageable = (limit == null)
+                ? Pageable.unpaged(sort)
+                : PageRequest.of(0, limit, sort);
+
+        List<ParkingSpotAllocation> allocations = (status == null)
+                ? parkingSpotAllocationRepository.findAllBy(pageable)
+                : parkingSpotAllocationRepository.findByStatus(status, pageable);
+
+        return allocations.stream()
+                .map(parkingSpotAllocationMapper::toDto)
+                .toList();
+
     }
 }
