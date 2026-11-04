@@ -137,4 +137,13 @@ public class ParkingSpotAllocationService {
                 .map(allocation -> parkingSpotAllocationMapper.toDto(allocation, now))
                 .toList();
     }
+
+    public List<AllocationDto> getAllAllocatingParkingSpotsForParkingLotFiltered(int id, AllocationStatus status) {
+        List<ParkingSpotAllocation> allocations = (status == null)
+                ? parkingSpotAllocationRepository.findByParkingLotId(id)
+                : parkingSpotAllocationRepository.findAllByParkingLotIdAndStatus(id, status);
+        return allocations.stream()
+                .map(parkingSpotAllocationMapper::toDto)
+                .toList();
+    }
 }

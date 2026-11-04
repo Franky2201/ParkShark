@@ -1046,6 +1046,258 @@ class ParkingSpotAllocationEndToEndTest {
 
     }
 
+    @Nested
+    class GetAllocationsForParkingLot {
+
+        private static final int LOT_ACTIVE = 960101;
+        private static final int LOT_PASSIVE = 960102;
+        private static final int LOT_INVOICED = 960103;
+
+        private static final int OTHER_ACTIVE = 960104;
+        private static final int OTHER_PASSIVE = 960105;
+        private static final int OTHER_INVOICED = 960106;
+
+        @BeforeEach
+        void createParkingLotAllocations() {
+            data.member(
+                    SECOND_MEMBER,
+                    "second@psa5-test.example",
+                    "PSA5-SECOND"
+            );
+
+            // Both parking lots contain every status.
+            // Each parking lot also contains allocations from different members.
+            data.allocation(
+                    LOT_ACTIVE, MEMBER, LOT, "ACTIVE", PLATE, 1
+            );
+            data.allocation(
+                    LOT_PASSIVE, SECOND_MEMBER, LOT,
+                    "PASSIVE", "PSA5-SECOND", 3
+            );
+            data.allocation(
+                    LOT_INVOICED, MEMBER, LOT, "INVOICED", PLATE, 5
+            );
+
+            data.allocation(
+                    OTHER_ACTIVE, SECOND_MEMBER, OTHER_LOT,
+                    "ACTIVE", "PSA5-SECOND", 2
+            );
+            data.allocation(
+                    OTHER_PASSIVE, MEMBER, OTHER_LOT,
+                    "PASSIVE", PLATE, 4
+            );
+            data.allocation(
+                    OTHER_INVOICED, SECOND_MEMBER, OTHER_LOT,
+                    "INVOICED", "PSA5-SECOND", 6
+            );
+        }
+
+        @Nested
+        class ParkingLotSelection {
+
+            @Test
+            void withoutStatusReturnsAllAllocationsForRequestedParkingLot() {
+                forParkingLot(LOT, Map.of())
+                        .statusCode(200)
+                        .contentType(ContentType.JSON)
+                        .body("id", containsInAnyOrder(
+                                LOT_ACTIVE, LOT_PASSIVE, LOT_INVOICED
+                        ))
+                        .body("parkingLotId", everyItem(equalTo(LOT)))
+                        .body("status", containsInAnyOrder(
+                                "ACTIVE", "PASSIVE", "INVOICED"
+                        ));
+            }
+
+            @Test
+            void requestingOtherParkingLotReturnsItsAllocations() {
+                forParkingLot(OTHER_LOT, Map.of())
+                        .statusCode(200)
+                        .body("id", containsInAnyOrder(
+                                OTHER_ACTIVE, OTHER_PASSIVE, OTHER_INVOICED
+                        ))
+                        .body(
+                                "parkingLotId",
+                                everyItem(equalTo(OTHER_LOT))
+                        );
+            }
+
+            @Test
+            void includesAllocationsFromDifferentMembers() {
+                forParkingLot(LOT, Map.of())
+                        .statusCode(200)
+                        .body("id", containsInAnyOrder(
+                                LOT_ACTIVE, LOT_PASSIVE, LOT_INVOICED
+                        ))
+                        .body("memberId", containsInAnyOrder(
+                                MEMBER, SECOND_MEMBER, MEMBER
+                        ));
+            }
+
+            @Test
+            void parkingLotWithoutAllocationsReturnsEmptyList() {
+                jdbc.update("""
+                    DELETE FROM parkshark.parking_spot_allocation
+                    WHERE parking_lot_id = ?
+                    """, LOT);
+
+                forParkingLot(LOT, Map.of())
+                        .statusCode(200)
+                        .body("$", hasSize(0));
+
+                // The other parking lot still has allocations.
+                assertThat(data.count()).isEqualTo(3L);
+            }
+
+            @Test
+            void unknownParkingLotReturnsEmptyListWithCurrentContract() {
+                forParkingLot(999999, Map.of())
+                        .statusCode(200)
+                        .body("$", hasSize(0));
+
+                assertThat(data.count()).isEqualTo(6L);
+            }
+        }
+
+        @Nested
+        class StatusFiltering {
+
+            @Test
+            void activeFilterReturnsOnlyActiveAllocationsOfRequestedLot() {
+                forParkingLot(LOT, Map.of("status", "ACTIVE"))
+                        .statusCode(200)
+                        .body("id", contains(LOT_ACTIVE))
+                        .body("parkingLotId", contains(LOT))
+                        .body("status", contains("ACTIVE"));
+            }
+
+            @Test
+            void passiveFilterExcludesInvoicedAndOtherLotsAllocations() {
+                forParkingLot(LOT, Map.of("status", "PASSIVE"))
+                        .statusCode(200)
+                        .body("id", contains(LOT_PASSIVE))
+                        .body("parkingLotId", contains(LOT))
+                        .body("status", contains("PASSIVE"));
+            }
+
+            @Test
+            void invoicedFilterReturnsOnlyInvoicedAllocationsOfRequestedLot() {
+                forParkingLot(LOT, Map.of("status", "INVOICED"))
+                        .statusCode(200)
+                        .body("id", contains(LOT_INVOICED))
+                        .body("parkingLotId", contains(LOT))
+                        .body("status", contains("INVOICED"));
+            }
+
+            @Test
+            void statusFilterAlsoWorksForOtherParkingLot() {
+                forParkingLot(OTHER_LOT, Map.of("status", "ACTIVE"))
+                        .statusCode(200)
+                        .body("id", contains(OTHER_ACTIVE))
+                        .body("parkingLotId", contains(OTHER_LOT));
+            }
+
+            @Test
+            void noMatchingStatusReturnsEmptyList_evenWhenOtherLotMatches() {
+                jdbc.update("""
+                    DELETE FROM parkshark.parking_spot_allocation
+                    WHERE id = ?
+                    """, LOT_PASSIVE);
+
+                forParkingLot(LOT, Map.of("status", "PASSIVE"))
+                        .statusCode(200)
+                        .body("$", hasSize(0));
+
+                forParkingLot(OTHER_LOT, Map.of("status", "PASSIVE"))
+                        .statusCode(200)
+                        .body("id", contains(OTHER_PASSIVE));
+            }
+
+            @Test
+            void unknownParkingLotWithStatusReturnsEmptyList() {
+                forParkingLot(999999, Map.of("status", "ACTIVE"))
+                        .statusCode(200)
+                        .body("$", hasSize(0));
+            }
+        }
+
+        @Nested
+        class ResponseAndPersistence {
+
+            @Test
+            void responseContainsCorrectAllocationDetails() {
+                var response = forParkingLot(
+                        LOT, Map.of("status", "PASSIVE")
+                )
+                        .statusCode(200)
+                        .contentType(ContentType.JSON)
+                        .body("$", hasSize(1))
+                        .body("[0].id", equalTo(LOT_PASSIVE))
+                        .body("[0].memberId", equalTo(SECOND_MEMBER))
+                        .body("[0].parkingLotId", equalTo(LOT))
+                        .body("[0].licensePlateNumber", equalTo("PSA5-SECOND"))
+                        .body("[0].status", equalTo("PASSIVE"))
+                        .extract();
+
+                assertThat(OffsetDateTime.parse(
+                        response.path("[0].startTime")
+                ).toInstant()).isEqualTo(NOW.minusSeconds(3 * 3600));
+
+                assertThat(OffsetDateTime.parse(
+                        response.path("[0].endTime")
+                ).toInstant()).isEqualTo(
+                        NOW.minusSeconds(3 * 3600).plusSeconds(1800)
+                );
+            }
+
+            @Test
+            void activeAllocationHasNoEndTime() {
+                forParkingLot(LOT, Map.of("status", "ACTIVE"))
+                        .statusCode(200)
+                        .body("$", hasSize(1))
+                        .body("[0].id", equalTo(LOT_ACTIVE))
+                        .body("[0].startTime", notNullValue())
+                        .body("[0].endTime", nullValue());
+            }
+
+            @Test
+            void readingAllocationsDoesNotChangeDatabase() {
+                var before = data.rows();
+
+                forParkingLot(LOT, Map.of()).statusCode(200);
+                forParkingLot(OTHER_LOT, Map.of("status", "PASSIVE"))
+                        .statusCode(200);
+
+                assertThat(data.rows()).isEqualTo(before);
+            }
+        }
+
+        @Nested
+        class InvalidParameters {
+
+            @Test
+            void unknownStatusReturnsBadRequestWithoutChangingData() {
+                var before = data.rows();
+
+                forParkingLot(LOT, Map.of("status", "UNKNOWN"))
+                        .statusCode(400);
+
+                assertThat(data.rows()).isEqualTo(before);
+            }
+
+            @ParameterizedTest
+            @ValueSource(strings = {"abc", "1.5", "2147483648"})
+            void invalidIntegerParkingLotIdReturnsBadRequest(String lotId) {
+                var before = data.rows();
+
+                forParkingLot(lotId, Map.of())
+                        .statusCode(400);
+
+                assertThat(data.rows()).isEqualTo(before);
+            }
+        }
+    }
+
     private Map<String, Object> request(String plate, int lot) {
         Map<String, Object> body = new HashMap<>();
         body.put("licensePlate", Map.of("number", plate, "country", "BE"));
@@ -1078,5 +1330,17 @@ class ParkingSpotAllocationEndToEndTest {
     private ValidatableResponse forMember(Object memberId, Map<String, Object> parameters) {
         return apiAs(MANAGER_EMAIL).queryParams(parameters).when()
                 .get("/allocation/member/{id}", memberId).then().log().ifValidationFails();
+    }
+
+    private ValidatableResponse forParkingLot(
+            Object parkingLotId,
+            Map<String, Object> parameters
+    ) {
+        return apiAs(MANAGER_EMAIL)
+                .queryParams(parameters)
+                .when()
+                .get("/allocation/parkinglot/{id}", parkingLotId)
+                .then()
+                .log().ifValidationFails();
     }
 }
