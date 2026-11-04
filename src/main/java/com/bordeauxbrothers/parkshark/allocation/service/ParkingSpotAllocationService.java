@@ -31,7 +31,7 @@ public class ParkingSpotAllocationService {
 
     public AllocationDto startAllocatingParkingSpot(@Valid StartAllocationDto startAllocationDto, Person user) {
         if (!(user instanceof Member member))
-            throw new BadRequestException("user is not a member");
+            throw new BadRequestException("User is not a member and can't therefore be allocated a parking spot");
         if (member.getMembership() != Membership.GOLD &&
                 !(member.getLicensePlate().equals(startAllocationDto.licencePlate()))) {
             throw new IllegalArgumentException("Licence plate has to match member if membership is not Gold");
