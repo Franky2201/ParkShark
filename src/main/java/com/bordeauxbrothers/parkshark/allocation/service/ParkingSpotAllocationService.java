@@ -4,10 +4,12 @@ import com.bordeauxbrothers.parkshark.allocation.api.ParkingSpotAllocationMapper
 import com.bordeauxbrothers.parkshark.allocation.api.dto.AllocationDto;
 import com.bordeauxbrothers.parkshark.allocation.api.dto.StartAllocationDto;
 import com.bordeauxbrothers.parkshark.allocation.domain.AllocationStatus;
+import com.bordeauxbrothers.parkshark.allocation.domain.ParkingSpotAllocation;
 import com.bordeauxbrothers.parkshark.allocation.domain.ParkingSpotAllocationRepository;
 import com.bordeauxbrothers.parkshark.common.exception.BadRequestException;
 import com.bordeauxbrothers.parkshark.common.exception.ConflictException;
 import com.bordeauxbrothers.parkshark.common.exception.ResourceNotFoundException;
+import com.bordeauxbrothers.parkshark.common.security.exception.ForbiddenException;
 import com.bordeauxbrothers.parkshark.parkingLot.domain.ParkingLot;
 import com.bordeauxbrothers.parkshark.parkingLot.repository.ParkingLotRepository;
 import com.bordeauxbrothers.parkshark.person.domain.Member;
@@ -39,9 +41,11 @@ public class ParkingSpotAllocationService {
 
     @Transactional
     public AllocationDto startAllocatingParkingSpot(@Valid StartAllocationDto startAllocationDto, Person user) {
-        //Member member = (Member) user;
-        Member member = user instanceof Member ? ((Member) user) : null;
-        assert member != null;
+        if (!(user instanceof Member member)) {
+            throw new ForbiddenException(
+                    "Only members can start a parking allocation"
+            );
+        }
         if (member.getMembership() != Membership.GOLD &&
                 !(member.getLicensePlate().getNumber().equals(startAllocationDto.licencePlate().getNumber()))) {
             throw new BadRequestException("Licence plate has to match member if membership is not Gold");
@@ -63,5 +67,25 @@ public class ParkingSpotAllocationService {
         return parkingSpotAllocationMapper.toDto(
                 parkingSpotAllocationRepository.save(
                         parkingSpotAllocationMapper.toEntity(startAllocationDto, member, startTime)));
+    }
+
+    @Transactional
+    public AllocationDto stopAllocatingParkingSpot(int id, Person user) {
+        if (!(user instanceof Member member)) {
+            throw new ForbiddenException(
+                    "Only members can stop a parking allocation"
+            );
+        }
+        ParkingSpotAllocation allocation = parkingSpotAllocationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Allocation does not exist"));
+        if (!(allocation.getMemberId().equals(member.getId()))) {
+            throw new ForbiddenException("Only member that created Allocation, can stop it");
+        }
+        if (allocation.getStatus() != AllocationStatus.ACTIVE) {
+            throw new ConflictException("Allocation has to be active to be stopped");
+        }
+        OffsetDateTime endTime = OffsetDateTime.now(clock);
+        allocation.stop(endTime);
+        return parkingSpotAllocationMapper.toDto(parkingSpotAllocationRepository.save(allocation));
     }
 }

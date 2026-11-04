@@ -9,6 +9,7 @@ import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -265,6 +266,260 @@ class ParkingSpotAllocationEndToEndTest {
         void nonPositiveParkingLotIdIsRejected(int lotId) {
             post(request(PLATE, lotId)).statusCode(400);
             assertThat(count()).isZero();
+        }
+    }
+
+    @Nested
+    class StopAllocation {
+
+        private static final int OTHER_MEMBER = 930003;
+        private static final String OTHER_EMAIL = "other@psa2-test.example";
+
+        @BeforeEach
+        void createOtherMember() {
+            // A second real member is needed to test allocation ownership.
+            jdbc.update("""
+                INSERT INTO parkshark.license_plate (id, number, country)
+                VALUES (?, 'PSA2-OTHER', 'BE')
+                """, OTHER_MEMBER);
+
+            // Sharing an address is allowed; each member has their own licence plate.
+            jdbc.update("""
+                INSERT INTO parkshark.person (
+                    id, first_name, last_name, email, password_hash,
+                    registration_date, role, address_id, phone_number,
+                    license_plate_id, membership
+                )
+                VALUES (
+                    ?, 'Other', 'Member', ?, ?,
+                    CURRENT_DATE, 'USER', ?, '+32470000222', ?, 'BRONZE'
+                )
+                """,
+                    OTHER_MEMBER,
+                    OTHER_EMAIL,
+                    passwordEncoder.encode(PASSWORD),
+                    MEMBER,
+                    OTHER_MEMBER);
+        }
+
+        @AfterEach
+        void removeOtherMember() {
+            jdbc.update(
+                    "DELETE FROM parkshark.person WHERE id = ?",
+                    OTHER_MEMBER
+            );
+            jdbc.update(
+                    "DELETE FROM parkshark.license_plate WHERE id = ?",
+                    OTHER_MEMBER
+            );
+        }
+
+        @Nested
+        class SuccessfulStop {
+
+            @ParameterizedTest
+            @ValueSource(strings = {"BRONZE", "SILVER", "GOLD"})
+            void ownerCanStopActiveAllocation(String membership) {
+                membership(membership);
+                int id = createAllocation("ACTIVE");
+                OffsetDateTime originalStart = timeColumn(id, "start_time");
+
+                var response = stop(id, EMAIL)
+                        .statusCode(200)
+                        .contentType(ContentType.JSON)
+                        .body("id", equalTo(id))
+                        .body("memberId", equalTo(MEMBER))
+                        .body("parkingLotId", equalTo(LOT))
+                        .body("licensePlateNumber", equalTo(PLATE))
+                        .body("status", equalTo("PASSIVE"))
+                        .body("endTime", notNullValue())
+                        .extract();
+
+                assertThat(
+                        OffsetDateTime.parse(response.path("startTime")).toInstant()
+                ).isEqualTo(originalStart.toInstant());
+
+                assertThat(
+                        OffsetDateTime.parse(response.path("endTime")).toInstant()
+                ).isEqualTo(NOW);
+
+                // Check committed database state, not only the response.
+                assertThat(status(id)).isEqualTo("PASSIVE");
+                assertThat(timeColumn(id, "end_time").toInstant()).isEqualTo(NOW);
+                assertThat(timeColumn(id, "start_time")).isEqualTo(originalStart);
+                assertThat(count()).isEqualTo(1L);
+            }
+
+            @Test
+            void stoppingOneAllocationDoesNotChangeAnother() {
+                int stoppedId = createAllocation("ACTIVE");
+                int untouchedId = createAllocation("ACTIVE");
+
+                Map<String, Object> untouchedBefore = row(untouchedId);
+
+                stop(stoppedId, EMAIL).statusCode(200);
+
+                assertThat(status(stoppedId)).isEqualTo("PASSIVE");
+                assertThat(row(untouchedId)).isEqualTo(untouchedBefore);
+                assertThat(count()).isEqualTo(2L);
+            }
+
+            @Test
+            void stoppingAllocationFreesParkingCapacity() {
+                int firstId = createAllocation("ACTIVE");
+                int secondId = createAllocation("ACTIVE");
+
+                // The parking lot has capacity 2 and is initially full.
+                post(request(PLATE, LOT)).statusCode(409);
+                assertThat(count()).isEqualTo(2L);
+
+                stop(firstId, EMAIL).statusCode(200);
+
+                // A new allocation can now use the released spot.
+                int newId = post(request(PLATE, LOT))
+                        .statusCode(SUCCESS)
+                        .body("status", equalTo("ACTIVE"))
+                        .extract().path("id");
+
+                assertThat(newId).isNotEqualTo(firstId).isNotEqualTo(secondId);
+                assertThat(status(firstId)).isEqualTo("PASSIVE");
+                assertThat(status(secondId)).isEqualTo("ACTIVE");
+
+                assertThat(jdbc.queryForObject("""
+                    SELECT COUNT(*)
+                    FROM parkshark.parking_spot_allocation
+                    WHERE parking_lot_id = ? AND status = 'ACTIVE'
+                    """, Long.class, LOT)).isEqualTo(2L);
+
+                // Stopping preserves history; it does not delete the allocation.
+                assertThat(count()).isEqualTo(3L);
+            }
+        }
+
+        @Nested
+        class Ownership {
+
+            @Test
+            void anotherMemberCannotStopAllocation() {
+                int id = createAllocation("ACTIVE");
+                Map<String, Object> before = row(id);
+
+                stop(id, OTHER_EMAIL).statusCode(403);
+
+                assertThat(row(id)).isEqualTo(before);
+                assertThat(count()).isEqualTo(1L);
+
+                // A rejected attempt does not prevent the real owner from stopping.
+                stop(id, EMAIL).statusCode(200);
+                assertThat(status(id)).isEqualTo("PASSIVE");
+            }
+        }
+
+        @Nested
+        class InvalidState {
+
+            @ParameterizedTest
+            @ValueSource(strings = {"PASSIVE", "INVOICED"})
+            void nonActiveAllocationCannotBeStopped(String initialStatus) {
+                int id = createAllocation(initialStatus);
+                Map<String, Object> before = row(id);
+
+                stop(id, EMAIL).statusCode(409);
+
+                // In particular, the original end time must not be overwritten.
+                assertThat(row(id)).isEqualTo(before);
+                assertThat(count()).isEqualTo(1L);
+            }
+
+            @Test
+            void stoppingTwiceIsRejectedAndPreservesFirstStop() {
+                int id = createAllocation("ACTIVE");
+
+                stop(id, EMAIL).statusCode(200);
+                Map<String, Object> afterFirstStop = row(id);
+
+                stop(id, EMAIL).statusCode(409);
+
+                assertThat(row(id)).isEqualTo(afterFirstStop);
+                assertThat(count()).isEqualTo(1L);
+            }
+        }
+
+        @Nested
+        class InvalidAllocationId {
+
+            @Test
+            void unknownAllocationReturnsNotFound() {
+                int existingId = createAllocation("ACTIVE");
+                Map<String, Object> before = row(existingId);
+
+                stop(999999, EMAIL).statusCode(404);
+
+                assertThat(row(existingId)).isEqualTo(before);
+                assertThat(count()).isEqualTo(1L);
+            }
+
+            @Test
+            void nonNumericIdReturnsBadRequest() {
+                stop("not-a-number", EMAIL).statusCode(400);
+
+                assertThat(count()).isZero();
+            }
+        }
+
+        private ValidatableResponse stop(int id, String email) {
+            return stop(String.valueOf(id), email);
+        }
+
+        private ValidatableResponse stop(String id, String email) {
+            return given()
+                    .baseUri("http://localhost")
+                    .port(port)
+                    .auth().preemptive().basic(email, PASSWORD)
+                    .contentType(ContentType.JSON)
+                    .accept(ContentType.JSON)
+                    .when()
+                    .put("/allocation/stop/{id}", id)
+                    .then()
+                    .log().ifValidationFails();
+        }
+
+        private int createAllocation(String initialStatus) {
+            // Reuse the outer class's SQL fixture helper.
+            seedAllocation(LOT, initialStatus);
+
+            // Each test runs sequentially in its dedicated H2 database.
+            return jdbc.queryForObject("""
+                SELECT MAX(id)
+                FROM parkshark.parking_spot_allocation
+                WHERE member_id = ? AND parking_lot_id = ?
+                """, Integer.class, MEMBER, LOT);
+        }
+
+        private Map<String, Object> row(int id) {
+            return jdbc.queryForMap("""
+                SELECT *
+                FROM parkshark.parking_spot_allocation
+                WHERE id = ?
+                """, id);
+        }
+
+        private String status(int id) {
+            return jdbc.queryForObject("""
+                SELECT status
+                FROM parkshark.parking_spot_allocation
+                WHERE id = ?
+                """, String.class, id);
+        }
+
+        private OffsetDateTime timeColumn(int id, String column) {
+            // Column names are fixed by test code, never supplied by an API caller.
+            return jdbc.queryForObject(
+                    "SELECT " + column
+                            + " FROM parkshark.parking_spot_allocation WHERE id = ?",
+                    OffsetDateTime.class,
+                    id
+            );
         }
     }
 
