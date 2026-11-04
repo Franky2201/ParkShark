@@ -17,7 +17,7 @@ public record StartAllocationDto(
         )
         @NotNull(message = "An allocation needs a licence plate")
         @Valid
-        LicensePlate licencePlate,
+        LicensePlate licensePlate,
 
         @Schema(
                 description = "ID of an existing parking lot with available capacity.",

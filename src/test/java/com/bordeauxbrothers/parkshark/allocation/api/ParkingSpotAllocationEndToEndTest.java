@@ -36,9 +36,8 @@ import static org.hamcrest.Matchers.*;
 
 /**
  * PSA1 functional contract tests. These intentionally expose bugs in version 3.0.
- * Keep the current request shape: licencePlate: {number, country}, parkingLotId.
- * Success is 200 as in the current controller; change SUCCESS to 201 if the
- * controller is changed to @ResponseStatus(HttpStatus.CREATED).
+ * Keep the current request shape: licensePlate: {number, country}, parkingLotId.
+ * Starting an allocation returns 201 (@ResponseStatus(HttpStatus.CREATED)); stopping returns 200.
  * No security matrix: every request uses one valid member account.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -51,7 +50,7 @@ import static org.hamcrest.Matchers.*;
 @Import(ParkingSpotAllocationEndToEndTest.FixedTime.class)
 @Execution(ExecutionMode.SAME_THREAD)
 class ParkingSpotAllocationEndToEndTest {
-    private static final int SUCCESS = 201;
+    private static final int CREATED = 201;
     // Deliberately different IDs: using memberId to look up a lot must fail.
     private static final int MEMBER = 930001;
     private static final int MANAGER = 930002;
@@ -126,7 +125,7 @@ class ParkingSpotAllocationEndToEndTest {
         @ValueSource(strings = {"BRONZE", "SILVER", "GOLD"})
         void matchingPlate_createsActiveAllocationAndPersistsResponse(String membership) {
             membership(membership);
-            int id = post(request(PLATE, LOT)).statusCode(SUCCESS)
+            int id = post(request(PLATE, LOT)).statusCode(CREATED)
                     .body("id", greaterThan(0))
                     .body("memberId", equalTo(MEMBER))
                     .body("parkingLotId", equalTo(LOT))
@@ -149,7 +148,7 @@ class ParkingSpotAllocationEndToEndTest {
 
         @Test
         void startTimeComesFromInjectedClock() {
-            String start = post(request(PLATE, LOT)).statusCode(SUCCESS)
+            String start = post(request(PLATE, LOT)).statusCode(CREATED)
                     .extract().path("startTime");
             assertThat(OffsetDateTime.parse(start).toInstant()).isEqualTo(NOW);
         }
@@ -157,7 +156,7 @@ class ParkingSpotAllocationEndToEndTest {
         @Test
         void goldCanParkAnotherCar_andActualPlateIsStored() {
             membership("GOLD");
-            int id = post(request("RENTAL-123", LOT)).statusCode(SUCCESS)
+            int id = post(request("RENTAL-123", LOT)).statusCode(CREATED)
                     .body("licensePlateNumber", equalTo("RENTAL-123"))
                     .extract().path("id");
             assertThat(jdbc.queryForObject(
@@ -167,10 +166,10 @@ class ParkingSpotAllocationEndToEndTest {
 
         @Test
         void generatedIdsAreUnique() {
-            int first = post(request(PLATE, LOT)).statusCode(SUCCESS).extract().path("id");
+            int first = post(request(PLATE, LOT)).statusCode(CREATED).extract().path("id");
             // End first session before starting another; no assumption about simultaneous sessions.
             jdbc.update("UPDATE parkshark.parking_spot_allocation SET status = 'PASSIVE', end_time = start_time WHERE id = ?", first);
-            int second = post(request(PLATE, LOT)).statusCode(SUCCESS).extract().path("id");
+            int second = post(request(PLATE, LOT)).statusCode(CREATED).extract().path("id");
             assertThat(second).isNotEqualTo(first);
             assertThat(count()).isEqualTo(2L);
         }
@@ -203,7 +202,7 @@ class ParkingSpotAllocationEndToEndTest {
         @Test
         void lastAvailableSpotCanBeTaken_butNextRequestIsRejected() {
             seedAllocation(LOT, "ACTIVE");
-            post(request(PLATE, LOT)).statusCode(SUCCESS);
+            post(request(PLATE, LOT)).statusCode(CREATED);
             assertThat(count()).isEqualTo(2L);
             post(request(PLATE, LOT)).statusCode(409);
             assertThat(count()).isEqualTo(2L);
@@ -213,7 +212,7 @@ class ParkingSpotAllocationEndToEndTest {
         void allocationsInOtherLotsDoNotConsumeRequestedLotCapacity() {
             seedAllocation(OTHER_LOT, "ACTIVE");
             seedAllocation(OTHER_LOT, "ACTIVE");
-            post(request(PLATE, LOT)).statusCode(SUCCESS).body("parkingLotId", equalTo(LOT));
+            post(request(PLATE, LOT)).statusCode(CREATED).body("parkingLotId", equalTo(LOT));
             assertThat(count()).isEqualTo(3L);
         }
 
@@ -221,7 +220,7 @@ class ParkingSpotAllocationEndToEndTest {
         void stoppedAndInvoicedAllocationsDoNotConsumeCapacity() {
             seedAllocation(LOT, "PASSIVE");
             seedAllocation(LOT, "INVOICED");
-            post(request(PLATE, LOT)).statusCode(SUCCESS);
+            post(request(PLATE, LOT)).statusCode(CREATED);
             assertThat(count()).isEqualTo(3L);
         }
     }
@@ -231,7 +230,7 @@ class ParkingSpotAllocationEndToEndTest {
         @Test
         void missingPlateIsRejected() {
             Map<String, Object> body = request(PLATE, LOT);
-            body.remove("licencePlate");
+            body.remove("licensePlate");
             post(body).statusCode(400);
             assertThat(count()).isZero();
         }
@@ -248,7 +247,7 @@ class ParkingSpotAllocationEndToEndTest {
         void missingPlateNumberIsRejectedEvenForGold() {
             membership("GOLD");
             Map<String, Object> body = request(PLATE, LOT);
-            body.put("licencePlate", Map.of("country", "BE"));
+            body.put("licensePlate", Map.of("country", "BE"));
             post(body).statusCode(400);
             assertThat(count()).isZero();
         }
@@ -377,7 +376,7 @@ class ParkingSpotAllocationEndToEndTest {
 
                 // A new allocation can now use the released spot.
                 int newId = post(request(PLATE, LOT))
-                        .statusCode(SUCCESS)
+                        .statusCode(CREATED)
                         .body("status", equalTo("ACTIVE"))
                         .extract().path("id");
 
@@ -525,7 +524,7 @@ class ParkingSpotAllocationEndToEndTest {
 
     private Map<String, Object> request(String plate, int lot) {
         Map<String, Object> body = new HashMap<>();
-        body.put("licencePlate", Map.of("number", plate, "country", "BE"));
+        body.put("licensePlate", Map.of("number", plate, "country", "BE"));
         body.put("parkingLotId", lot);
         return body;
     }

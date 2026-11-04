@@ -48,7 +48,7 @@ public class ParkingSpotAllocationService {
             );
         }
         if (member.getMembership() != Membership.GOLD &&
-                !(member.getLicensePlate().getNumber().equals(startAllocationDto.licencePlate().getNumber()))) {
+                !(member.getLicensePlate().getNumber().equals(startAllocationDto.licensePlate().getNumber()))) {
             throw new BadRequestException("Licence plate has to match member if membership is not Gold");
         }
         int maxCapacity = parkingLotRepository.findById(startAllocationDto.parkingLotId()).map(ParkingLot::getMaxCapacity)
