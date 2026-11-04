@@ -18,6 +18,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.*;
 
 import static com.bordeauxbrothers.parkshark.person.domain.persondetails.Feature.CREATE_PARKING_LOT_ALLOCATION;
+import static com.bordeauxbrothers.parkshark.person.domain.persondetails.Feature.STOP_PARKING_LOT_ALLOCATION;
 
 @Tag(
         name = "Parking spot allocations",
@@ -142,5 +143,16 @@ public class ParkingSpotAllocationController {
         Person user = securityService.validateAuthorization(authorization, CREATE_PARKING_LOT_ALLOCATION);
         return parkingSpotAllocationService.startAllocatingParkingSpot(startAllocationDto, user);
     }
+
+    @PutMapping(path = "/stop/{id}", produces = "application/json")
+    @SecurityRequirement(name = "basicAuth")
+    public AllocationDto stopAllocatingParkingSpot(
+            @Parameter(hidden = true)
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable int id) {
+        Person user = securityService.validateAuthorization(authorization, STOP_PARKING_LOT_ALLOCATION);
+        return parkingSpotAllocationService.stopAllocatingParkingSpot(id, user);
+    }
+
 
 }

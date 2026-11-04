@@ -122,4 +122,5 @@ public class ParkingSpotAllocation {
     public AllocationStatus getStatus() {
         return status;
     }
+
 }
