@@ -181,6 +181,16 @@ public class ParkingSpotAllocationController {
         return parkingSpotAllocationService.getAllAllocatingParkingSpotsForMemberFiltered(id, status);
     }
 
+    @GetMapping(path = "/parkinglot/{id}", produces = "application/json")
+    @SecurityRequirement(name = "basicAuth")
+    public List<AllocationDto> getAllAllocatingParkingSpotsForParkingLotFiltered(
+            @Parameter(hidden = true)
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable int id,
+            @RequestParam(name = "status", required = false) AllocationStatus status) {
+        securityService.validateAuthorization(authorization, SEE_ALLOCATIONS_FOR_SPECIFIC_PARKING_LOT);
+        return parkingSpotAllocationService.getAllAllocatingParkingSpotsForParkingLotFiltered(id, status);
+    }
 
 
 }
