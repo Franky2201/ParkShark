@@ -78,7 +78,7 @@ public class ParkingSpotAllocationController {
             )
     )
     @ApiResponse(
-            responseCode = "200",
+            responseCode = "201",
             description = "Allocation started successfully.",
             content = @Content(
                     mediaType = "application/json",

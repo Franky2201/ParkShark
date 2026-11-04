@@ -51,7 +51,7 @@ import static org.hamcrest.Matchers.*;
 @Import(ParkingSpotAllocationEndToEndTest.FixedTime.class)
 @Execution(ExecutionMode.SAME_THREAD)
 class ParkingSpotAllocationEndToEndTest {
-    private static final int SUCCESS = 200;
+    private static final int SUCCESS = 201;
     // Deliberately different IDs: using memberId to look up a lot must fail.
     private static final int MEMBER = 930001;
     private static final int MANAGER = 930002;
