@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record StartAllocationDto(
         @NotNull(message = "an allocation needs a licence plate")
-        LicensePlate licencePlate,
+        LicensePlate licensePlate,
         @NotNull(message = "an allocation needs a parking lot linked")
         Integer parkingLotId
 ) {
