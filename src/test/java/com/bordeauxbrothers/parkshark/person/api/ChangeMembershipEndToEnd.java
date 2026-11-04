@@ -94,7 +94,7 @@ public class ChangeMembershipEndToEnd {
                 .contentType(ContentType.JSON)
                 .body("{\"membership\":\"SILVER\"}")
                 .when()
-                .post("/person/membership")
+                .put("/person/membership")
                 .then()
                 .statusCode(200);
 
@@ -116,7 +116,7 @@ public class ChangeMembershipEndToEnd {
                 .contentType(ContentType.JSON)
                 .body(dto)
                 .when()
-                .post("/person/membership")
+                .put("/person/membership")
                 .then()
                 .statusCode(409)
                 .body("detail", equalTo(String.format(
@@ -137,7 +137,7 @@ public class ChangeMembershipEndToEnd {
                 .contentType(ContentType.JSON)
                 .body(dto)
                 .when()
-                .post("/person/membership")
+                .put("/person/membership")
                 .then()
                 .statusCode(400)
                 .body("detail", equalTo(String.format("Membership %s is not valid", dto.getMembership().trim().toUpperCase())
