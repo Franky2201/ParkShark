@@ -1,6 +1,7 @@
 package com.bordeauxbrothers.parkshark.person.api;
 
 import com.bordeauxbrothers.parkshark.common.security.SecurityService;
+import com.bordeauxbrothers.parkshark.person.domain.Member;
 import com.bordeauxbrothers.parkshark.person.domain.Person;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Feature;
 import com.bordeauxbrothers.parkshark.person.service.PersonService;
@@ -41,5 +42,12 @@ public class PersonController {
     public void changeMembership(@RequestBody MembershipDTO membership, @RequestHeader(value = "Authorization", required = false) String authorization){
         Person user = securityService.validateAuthorization(authorization, Feature.CHANGE_MEMBERSHIP_STATUS);
         personService.changeMembership(membership, user);
+    }
+
+    @GetMapping(path = "/{id}", produces = "application/json")
+    @ResponseStatus(HttpStatus.OK)
+    public Member getMember(@RequestHeader(value = "Authorization", required = false) String authorization, @PathVariable("id") int id){
+        securityService.validateAuthorization(authorization, Feature.SEE_SPECIFIC_MEMBER);
+        return personService.getMember(id);
     }
 }

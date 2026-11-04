@@ -98,7 +98,7 @@ public class PersonService {
             requested = Membership.valueOf(membership.getMembership().trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ex) {
             throw new InvalidMembershipException(
-                    String.format("Membership %s is not valid", membership)
+                    String.format("Membership %s is not valid", membership.getMembership().trim().toUpperCase())
             );
         }
         Member member = (Member) user;
