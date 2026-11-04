@@ -142,8 +142,10 @@ public class ParkingSpotAllocationService {
         List<ParkingSpotAllocation> allocations = (status == null)
                 ? parkingSpotAllocationRepository.findByParkingLotId(id)
                 : parkingSpotAllocationRepository.findAllByParkingLotIdAndStatus(id, status);
+
+        OffsetDateTime now = OffsetDateTime.now(clock);
         return allocations.stream()
-                .map(parkingSpotAllocationMapper::toDto)
+                .map(allocation -> parkingSpotAllocationMapper.toDto(allocation, now))
                 .toList();
     }
 }
