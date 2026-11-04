@@ -1,24 +1,32 @@
 package com.bordeauxbrothers.parkshark.person.service;
 
+import com.bordeauxbrothers.parkshark.person.domain.Person;
+import com.bordeauxbrothers.parkshark.person.domain.persondetails.Membership;
 import com.bordeauxbrothers.parkshark.person.exception.EmailAlreadyInUseException;
 import com.bordeauxbrothers.parkshark.person.domain.Member;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Address;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.LicensePlate;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.PostalCode;
+import com.bordeauxbrothers.parkshark.person.exception.InvalidMembershipException;
 import com.bordeauxbrothers.parkshark.person.repositories.AddressRepository;
 import com.bordeauxbrothers.parkshark.person.repositories.LicensePlateRepository;
 import com.bordeauxbrothers.parkshark.person.repositories.PersonRepository;
 import com.bordeauxbrothers.parkshark.person.repositories.PostalCodeRepository;
 import com.bordeauxbrothers.parkshark.person.service.dtos.AddMemberDTO;
 import com.bordeauxbrothers.parkshark.person.service.dtos.GetAllMembersDTO;
+import com.bordeauxbrothers.parkshark.person.service.dtos.MembershipDTO;
 import com.bordeauxbrothers.parkshark.person.service.mappers.PersonMapper;
 import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class PersonService {
+    private final Logger log = LoggerFactory.getLogger(PersonService.class);
     private final PersonRepository personRepository;
     private final PostalCodeRepository postalCodeRepository;
     private final AddressRepository addressRepository;
@@ -81,5 +89,19 @@ public class PersonService {
         return personRepository.getAllMembers().stream()
                 .map(personMapper::fromMemberToGetAllMembersDTO)
                 .toList();
+    }
+
+    public void changeMembership(MembershipDTO membership, Person user) {
+        Membership requested;
+        try {
+            requested = Membership.valueOf(membership.getMembership().trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new InvalidMembershipException(
+                    String.format("Membership %s is not valid", membership)
+            );
+        }
+        Member member = (Member) user;
+        member.setMembership(requested);
+        personRepository.save(member);
     }
 }
