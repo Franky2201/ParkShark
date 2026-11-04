@@ -335,6 +335,26 @@ class DivisionEndToEndTest {
                     expectedDivision(NAME, ORIGINAL_NAME, DIRECTOR_ID));
             assertThat(result.getFirst().get("id")).isEqualTo(createdId);
         }
+
+        @Test
+        void withSubdivision_showsParentsCurrentNameAfterRename() {
+            insertDivision(NAME, ORIGINAL_NAME, DIRECTOR_ID);
+            int parentId = divisionIdByName(NAME);
+            insertSubDivision("ParkShark Berchem", "Berchem Parking",
+                    SECOND_DIRECTOR_ID, parentId);
+            int subId = divisionIdByName("ParkShark Berchem");
+
+            // No rename endpoint exists (no story for it): simulate it in the DB.
+            renameDivision(parentId, "ParkShark Antwerpen Centrum");
+
+            Map<String, Object> sub = getAllDivisions().stream()
+                    .filter(division -> division.get("id").equals(subId))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("Subdivision ontbreekt"));
+
+            assertThat(sub.get("parentDivision"))
+                    .isEqualTo(expectedParent(parentId, "ParkShark Antwerpen Centrum"));
+        }
     }
 
     @Nested
@@ -365,7 +385,7 @@ class DivisionEndToEndTest {
 
             Map<String, Object> expected = expectedDivision(
                     "ParkShark Berchem", "Berchem Parking", SECOND_DIRECTOR_ID);
-            expected.put("parentDivisionId", divisionId);
+            expected.put("parentDivision", expectedParent(divisionId, NAME));
 
             assertThat(getDivision(subId)).isEqualTo(expected);
         }
@@ -383,6 +403,21 @@ class DivisionEndToEndTest {
                     .then().log().ifValidationFails()
                     .statusCode(400);
         }
+
+        @Test
+        void withSubdivision_showsParentsCurrentNameAfterRename() {
+            insertSubDivision("ParkShark Berchem", "Berchem Parking",
+                    SECOND_DIRECTOR_ID, divisionId);
+            int subId = divisionIdByName("ParkShark Berchem");
+
+            // No rename endpoint exists (no story for it): simulate it in the DB.
+            renameDivision(divisionId, "ParkShark Antwerpen Centrum");
+
+            assertThat(getDivision(subId).get("parentDivision"))
+                    .isEqualTo(expectedParent(divisionId, "ParkShark Antwerpen Centrum"));
+        }
+
+
 
         @Nested
         class AccessControl {
@@ -443,7 +478,8 @@ class DivisionEndToEndTest {
                     .body("name", equalTo(SUB_NAME))
                     .body("originalName", equalTo(SUB_ORIGINAL_NAME))
                     .body("directorId", equalTo(SECOND_DIRECTOR_ID))
-                    .body("parentDivisionId", equalTo(parentId));
+                    .body("parentDivision.id", equalTo(parentId))
+                    .body("parentDivision.name", equalTo(NAME));
 
             assertThat(jdbcTemplate.queryForObject(
                     "SELECT parent_division_id FROM parkshark.division WHERE name = ?",
@@ -460,7 +496,8 @@ class DivisionEndToEndTest {
                     .when().post("/division/{parentId}/subdivisions", subId)
                     .then().log().ifValidationFails()
                     .statusCode(201)
-                    .body("parentDivisionId", equalTo(subId));
+                    .body("parentDivision.id", equalTo(subId))
+                    .body("parentDivision.name", equalTo(SUB_NAME));
         }
 
         @Test
@@ -507,7 +544,7 @@ class DivisionEndToEndTest {
 
             Map<String, Object> expectedSub =
                     expectedDivision(SUB_NAME, SUB_ORIGINAL_NAME, DIRECTOR_ID);
-            expectedSub.put("parentDivisionId", parentId);
+            expectedSub.put("parentDivision", expectedParent(parentId, NAME));
 
             assertThat(result).containsExactlyInAnyOrder(
                     expectedDivision(NAME, ORIGINAL_NAME, DIRECTOR_ID),
@@ -662,6 +699,17 @@ class DivisionEndToEndTest {
         Map<String, Object> expected = createRequest(name, originalName, directorId);
         expected.put("id", divisionIdByName(name));
         return expected;
+    }
+
+    /** Expected nested "parentDivision" object in a subdivision response. */
+    private Map<String, Object> expectedParent(int id, String name) {
+        return Map.of("id", id, "name", name);
+    }
+
+    private void renameDivision(int id, String newName) {
+        jdbcTemplate.update(
+                "UPDATE parkshark.division SET name = ? WHERE id = ?",
+                newName, id);
     }
 
     private void insertMember() {
