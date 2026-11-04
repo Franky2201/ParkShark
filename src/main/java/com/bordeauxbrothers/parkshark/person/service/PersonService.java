@@ -53,10 +53,12 @@ public class PersonService {
         isEmailAlreadyUsed(dto.getEmail());
         var postalCodeDTO = dto.getAddressDTO().getPostalCodeDTO();
 
+        log.info("Saving postal code {}", postalCodeDTO);
         PostalCode savedPostalCode = postalCodeRepository.save(
                 new PostalCode(postalCodeDTO.getZipCode(), postalCodeDTO.getLabel())
         );
 
+        log.info("Saving address {}", dto.getAddressDTO());
         var addressDTO = dto.getAddressDTO();
         Address savedAddress = addressRepository.save(
                 new Address(
@@ -67,6 +69,8 @@ public class PersonService {
         );
 
         var plateDTO = dto.getLicensePlateDTO();
+
+        log.info("Saving license plate {}", plateDTO);
         LicensePlate savedPlate = licensePlateRepository.save(
                 new LicensePlate(plateDTO.getNumber(), plateDTO.getCountry())
         );
@@ -77,10 +81,12 @@ public class PersonService {
                 savedPlate
         );
 
+        log.info("Saving member {}", member);
         personRepository.save(member);
     }
 
     public void isEmailAlreadyUsed(String email){
+        log.info("Checking if email {} is already used", email);
         if (personRepository.findByEmail(email).isPresent()){
             throw new EmailAlreadyInUseException("Email already used");
         };
@@ -97,16 +103,19 @@ public class PersonService {
         try {
             requested = Membership.valueOf(membership.getMembership().trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ex) {
+            log.error("Membership {} is not valid", membership.getMembership().trim().toUpperCase());
             throw new InvalidMembershipException(
                     String.format("Membership %s is not valid", membership.getMembership().trim().toUpperCase())
             );
         }
+        log.info("Casting Person to Member");
         Member member = (Member) user;
         member.setMembership(requested);
         personRepository.save(member);
     }
 
     public Member getMember(int id) {
+        log.info("Getting member with id {}", id);
         return personRepository.findMemberById(id)
                 .orElseThrow(() -> new NotExistingUserException("Member with id " + id + " not found"));
     }

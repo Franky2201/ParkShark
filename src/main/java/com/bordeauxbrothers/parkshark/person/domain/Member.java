@@ -3,6 +3,8 @@ package com.bordeauxbrothers.parkshark.person.domain;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.*;
 import com.bordeauxbrothers.parkshark.person.exception.UnchangedMembershipException;
 import jakarta.persistence.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDate;
 @Entity
@@ -25,6 +27,8 @@ public class Member extends Person {
 
     @Enumerated(EnumType.STRING)
     private Membership membership = Membership.BRONZE;
+
+    private static final Logger logger = LoggerFactory.getLogger(Member.class);
 
     protected Member() {
     }
@@ -77,8 +81,10 @@ public class Member extends Person {
 
     public void setMembership(Membership membership) {
         if (this.membership != membership) {
+            logger.info("Membership changed from {} to {}", this.membership.getLabel(), membership.getLabel());
             this.membership = membership;
         } else {
+            logger.warn("Membership hasn't changed. Your membership was already: {}", membership.getLabel());
             throw new UnchangedMembershipException(String.format("Membership hasn't changed. Your membership was already: %s.", membership.getLabel()));
         }
     }
