@@ -51,6 +51,7 @@ class ParkingLotEndToEndTest {
     private static final int MEMBER_ADDRESS_ID = 900102;
     private static final int MEMBER_POSTAL_CODE_ID = 900102;
     private static final int MEMBER_PLATE_ID = 900102;
+    private static final int UNKNOWN_PARKING_LOT_ID = 987654;
 
     private static final String MANAGER_EMAIL = "manager@parking-lot-test.example";
     private static final String MEMBER_EMAIL = "member@parking-lot-test.example";
@@ -112,7 +113,10 @@ class ParkingLotEndToEndTest {
                     .body("category", equalTo("UNDERGROUND"))
                     .body("maxCapacity", equalTo(250))
                     .body("contactPersonId", equalTo(MEMBER_ID))
-                    .body("divisionId", equalTo(DIVISION_ID))
+                    .body("division.id", equalTo(DIVISION_ID))
+                    .body("division.name", equalTo("ParkShark Brussels"))
+                    .body("division.id", equalTo(DIVISION_ID))
+                    .body("division.directorId", equalTo(MANAGER_ID))
                     .body("address.street", equalTo(STREET))
                     .body("address.number", equalTo(NUMBER))
                     .body("address.postal_code.zip_code", equalTo(ZIP_CODE))
@@ -376,6 +380,127 @@ class ParkingLotEndToEndTest {
         }
     }
 
+    @Nested
+    @DisplayName("GET /parking-lots/{id} - Happy path")
+    class GetOneHappyPath {
+
+        @Test
+        @DisplayName("Should return 200 OK with all data of the parking lot, including its division")
+        void getParkingLot_whenItExists_returnsOkWithAllDataIncludingDivision() {
+            // Given
+            int parkingLotId = createParkingLot(NAME, 250);
+
+            // When & Then
+            api()
+                    .when()
+                    .get("/parking-lots/{id}", parkingLotId)
+                    .then()
+                    .log().ifValidationFails()
+                    .statusCode(200)
+                    .contentType(ContentType.JSON)
+                    .body("id", equalTo(parkingLotId))
+                    .body("name", equalTo(NAME))
+                    .body("category", equalTo("UNDERGROUND"))
+                    .body("maxCapacity", equalTo(250))
+                    .body("pricePerHour", equalTo(3.50f))
+                    .body("contactPersonId", equalTo(MEMBER_ID))
+                    .body("address.street", equalTo(STREET))
+                    .body("address.number", equalTo(NUMBER))
+                    .body("address.postal_code.zip_code", equalTo(ZIP_CODE))
+                    .body("address.postal_code.label", equalTo(LABEL))
+                    .body("division.id", equalTo(DIVISION_ID))
+                    .body("division.name", equalTo("ParkShark Brussels"))
+                    .body("division.originalName", equalTo("Brussels Parking"))
+                    .body("division.directorId", equalTo(MANAGER_ID));
+        }
+
+        @Test
+        @DisplayName("Should return the requested parking lot, not another one")
+        void getParkingLot_withMultipleParkingLots_returnsOnlyTheRequestedOne() {
+            // Given
+            createParkingLot(NAME, 250);
+            int grandPlaceId = createParkingLot("Grand Place Parking", 80);
+
+            // When & Then
+            api()
+                    .when()
+                    .get("/parking-lots/{id}", grandPlaceId)
+                    .then()
+                    .log().ifValidationFails()
+                    .statusCode(200)
+                    .body("id", equalTo(grandPlaceId))
+                    .body("name", equalTo("Grand Place Parking"))
+                    .body("maxCapacity", equalTo(80));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /parking-lots/{id} - Validation and exceptions")
+    class GetOneValidationAndExceptions {
+
+        @Test
+        @DisplayName("Should return 404 Not Found with a problem detail when the parking lot does not exist")
+        void getParkingLot_withUnknownId_returnsNotFound() {
+            // When & Then
+            api()
+                    .when()
+                    .get("/parking-lots/{id}", UNKNOWN_PARKING_LOT_ID)
+                    .then()
+                    .log().ifValidationFails()
+                    .statusCode(404)
+                    .contentType("application/problem+json")
+                    .body("status", equalTo(404))
+                    .body("detail", containsString(String.valueOf(UNKNOWN_PARKING_LOT_ID)));
+        }
+
+        @Test
+        @DisplayName("Should return 400 Bad Request when the id is not a number")
+        void getParkingLot_withNonNumericId_returnsBadRequest() {
+            // When & Then
+            api()
+                    .when()
+                    .get("/parking-lots/{id}", "the-shark-tank")
+                    .then()
+                    .log().ifValidationFails()
+                    .statusCode(400);
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /parking-lots/{id} - Security and authorization")
+    class GetOneSecurityAndAuthorization {
+
+        @Test
+        @DisplayName("Should return 401 Unauthorized when no credentials are provided")
+        void getParkingLot_withoutCredentials_returnsUnauthorized() {
+            // Given
+            int parkingLotId = createParkingLot(NAME, 250);
+
+            // When & Then
+            apiWithoutAuthentication()
+                    .when()
+                    .get("/parking-lots/{id}", parkingLotId)
+                    .then()
+                    .log().ifValidationFails()
+                    .statusCode(401);
+        }
+
+        @Test
+        @DisplayName("Should return 403 Forbidden when a member tries to see a parking lot")
+        void getParkingLot_asMember_returnsForbidden() {
+            // Given
+            int parkingLotId = createParkingLot(NAME, 250);
+
+            // When & Then
+            apiAs(MEMBER_EMAIL, TEST_PASSWORD)
+                    .when()
+                    .get("/parking-lots/{id}", parkingLotId)
+                    .then()
+                    .log().ifValidationFails()
+                    .statusCode(403);
+        }
+    }
+
     private Map<String, Object> validRequest() {
         // HashMap allows null values for the validation tests.
         Map<String, Object> postalCode = new HashMap<>();
@@ -398,19 +523,21 @@ class ParkingLotEndToEndTest {
         return request;
     }
 
-    private void createParkingLot(String name, int maxCapacity) {
+    private int createParkingLot(String name, int maxCapacity) {
         Map<String, Object> request = validRequest();
         request.put("name", name);
         request.put("maxCapacity", maxCapacity);
 
-        api()
+        return api()
                 .contentType(ContentType.JSON)
                 .body(request)
                 .when()
                 .post("/parking-lots")
                 .then()
                 .log().ifValidationFails()
-                .statusCode(201);
+                .statusCode(201)
+                .extract()
+                .path("id");
     }
     
     private Long countParkingLots() {

@@ -1,5 +1,6 @@
 package com.bordeauxbrothers.parkshark.parkingLot.api.dto;
 
+import com.bordeauxbrothers.parkshark.division.api.dto.DivisionDto;
 import com.bordeauxbrothers.parkshark.parkingLot.domain.Category;
 import com.bordeauxbrothers.parkshark.person.service.dtos.AddressDTO;
 
@@ -12,7 +13,7 @@ public record ParkingLotDto(
         Integer maxCapacity,
         BigDecimal pricePerHour,
         Integer contactPersonId,
-        Integer divisionId,
+        DivisionDto division,
         AddressDTO address
 ) {
 }

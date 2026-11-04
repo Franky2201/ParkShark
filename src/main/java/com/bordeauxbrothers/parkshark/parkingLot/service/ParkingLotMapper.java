@@ -1,6 +1,7 @@
-package com.bordeauxbrothers.parkshark.parkingLot.api;
+package com.bordeauxbrothers.parkshark.parkingLot.service;
 
 import com.bordeauxbrothers.parkshark.division.domain.Division;
+import com.bordeauxbrothers.parkshark.division.service.DivisionMapper;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.CreateParkingLotDto;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.ParkingLotDto;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.ParkingLotOverviewDto;
@@ -14,9 +15,11 @@ import org.springframework.stereotype.Component;
 public class ParkingLotMapper {
 
     private final AddressMapper addressMapper;
+    private final DivisionMapper divisionMapper;
 
-    public ParkingLotMapper(AddressMapper addressMapper) {
+    public ParkingLotMapper(AddressMapper addressMapper, DivisionMapper divisionMapper) {
         this.addressMapper = addressMapper;
+        this.divisionMapper = divisionMapper;
     }
 
     public ParkingLot toEntity(CreateParkingLotDto dto, PostalCode postalCode, Member contactPerson, Division division) {
@@ -32,7 +35,7 @@ public class ParkingLotMapper {
                 parkingLot.getMaxCapacity(),
                 parkingLot.getPricePerHour(),
                 parkingLot.getContactPerson().getId(),
-                parkingLot.getDivision().getId(),
+                divisionMapper.toDto(parkingLot.getDivision()),
                 addressMapper.toDto(parkingLot.getAddress()));
     }
 
