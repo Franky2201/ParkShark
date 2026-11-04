@@ -36,10 +36,6 @@ public abstract class Person {
     @Column(name = "role", insertable = false, updatable = false)
     private Role role;
 
-//    @Enumerated(EnumType.STRING)
-//    @Column(name = "membership")
-//    private Membership membership;
-
     protected Person() {
     }
 
