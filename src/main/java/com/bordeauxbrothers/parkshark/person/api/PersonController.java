@@ -34,4 +34,11 @@ public class PersonController {
         securityService.validateAuthorization(authorization, Feature.SEE_ALL_MEMBERS);
         return personService.getAllMembers();
     }
+
+    @GetMapping(path = "/{id}", produces = "application/json")
+    @ResponseStatus(HttpStatus.OK)
+    public Member getMember(@RequestHeader(value = "Authorization", required = false) String authorization, @PathVariable("id") int id){
+        securityService.validateAuthorization(authorization, Feature.SEE_SPECIFIC_MEMBER);
+        return personService.getMember(id);
+    }
 }
