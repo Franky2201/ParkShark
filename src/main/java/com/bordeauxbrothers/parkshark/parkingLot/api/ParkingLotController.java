@@ -3,9 +3,11 @@ package com.bordeauxbrothers.parkshark.parkingLot.api;
 import com.bordeauxbrothers.parkshark.common.security.SecurityService;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.CreateParkingLotDto;
 import com.bordeauxbrothers.parkshark.parkingLot.api.dto.ParkingLotDto;
+import com.bordeauxbrothers.parkshark.parkingLot.api.dto.ParkingLotOverviewDto;
 import com.bordeauxbrothers.parkshark.parkingLot.service.ParkingLotService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -15,7 +17,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 import static com.bordeauxbrothers.parkshark.person.domain.persondetails.Feature.CREATE_PARKING_LOT;
+import static com.bordeauxbrothers.parkshark.person.domain.persondetails.Feature.SEE_ALL_PARKING_LOTS;
 
 @RestController
 @RequestMapping(path = "/parking-lots")
@@ -55,5 +60,28 @@ public class ParkingLotController {
             @Valid @RequestBody CreateParkingLotDto createParkingLotDto) {
         securityService.validateAuthorization(authorization, CREATE_PARKING_LOT);
         return parkingLotService.createParkingLot(createParkingLotDto);
+    }
+
+    @Operation(
+            summary = "Get all parking lots",
+            description = """
+                    Returns an overview of all parking lots: id, name, capacity,
+                    and the contact person's email and telephone. Requires the MANAGER role.
+                    """)
+    @ApiResponse(responseCode = "200", description = "List of parking lots (empty if none exist)",
+            content = @Content(mediaType = "application/json",
+                    array = @ArraySchema(schema = @Schema(implementation = ParkingLotOverviewDto.class))))
+    @ApiResponse(responseCode = "401", description = "Missing or invalid credentials",
+            content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "403", description = "Authenticated, but not allowed to see all parking lots",
+            content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
+    @GetMapping(produces = "application/json")
+    @ResponseStatus(HttpStatus.OK)
+    @SecurityRequirement(name = "basicAuth")
+    public List<ParkingLotOverviewDto> getAllParkingLots(
+            @Parameter(hidden = true)
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        securityService.validateAuthorization(authorization, SEE_ALL_PARKING_LOTS);
+        return parkingLotService.getAllParkingLots();
     }
 }

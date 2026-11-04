@@ -15,4 +15,7 @@ public interface PersonRepository extends JpaRepository<Person, Integer> {
 
     @Query("SELECT m FROM Member m")
     List<Member> getAllMembers();
+
+    @Query("SELECT m FROM Member m WHERE m.id = ?1")
+    Optional<Member> findMemberById(int id);
 }
