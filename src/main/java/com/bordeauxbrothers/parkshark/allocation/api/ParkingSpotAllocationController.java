@@ -177,7 +177,7 @@ public class ParkingSpotAllocationController {
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @PathVariable int id,
             @RequestParam(name = "status", required = false) AllocationStatus status) {
-        securityService.validateAuthorization(authorization, SEE_MEMBER_PARKINGlOT_ALLOCATIONS);
+        securityService.validateAuthorization(authorization, SEE_MEMBER_PARKINGLOT_ALLOCATIONS);
         return parkingSpotAllocationService.getAllAllocatingParkingSpotsForMemberFiltered(id, status);
     }
 
