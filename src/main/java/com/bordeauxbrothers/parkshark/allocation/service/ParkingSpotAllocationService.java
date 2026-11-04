@@ -6,6 +6,7 @@ import com.bordeauxbrothers.parkshark.allocation.api.dto.StartAllocationDto;
 import com.bordeauxbrothers.parkshark.allocation.domain.AllocationStatus;
 import com.bordeauxbrothers.parkshark.allocation.domain.ParkingSpotAllocation;
 import com.bordeauxbrothers.parkshark.allocation.domain.ParkingSpotAllocationRepository;
+import com.bordeauxbrothers.parkshark.allocation.exception.ParkingLotNotFoundException;
 import com.bordeauxbrothers.parkshark.common.exception.BadRequestException;
 import com.bordeauxbrothers.parkshark.common.exception.ConflictException;
 import com.bordeauxbrothers.parkshark.common.exception.ResourceNotFoundException;
@@ -52,11 +53,11 @@ public class ParkingSpotAllocationService {
             );
         }
         if (member.getMembership() != Membership.GOLD &&
-                !(member.getLicensePlate().getNumber().equals(startAllocationDto.licencePlate().getNumber()))) {
+                !(member.getLicensePlate().getNumber().equals(startAllocationDto.licensePlate().getNumber()))) {
             throw new BadRequestException("Licence plate has to match member if membership is not Gold");
         }
         int maxCapacity = parkingLotRepository.findById(startAllocationDto.parkingLotId()).map(ParkingLot::getMaxCapacity)
-                .orElseThrow(() -> new ResourceNotFoundException("Parking Lot does not exist"));
+                .orElseThrow(() -> new ParkingLotNotFoundException(startAllocationDto.parkingLotId()));
 
 
         int usedCapacity = Math.toIntExact(parkingSpotAllocationRepository.findByParkingLotId(startAllocationDto.parkingLotId())

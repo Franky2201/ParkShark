@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import java.util.Objects;
+
 @Entity
 public class LicensePlate {
     @Id
@@ -31,5 +33,17 @@ public class LicensePlate {
     }
     public Integer getId() {
         return id;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        LicensePlate that = (LicensePlate)o;
+        return Objects.equals(getNumber(), that.getNumber()) && Objects.equals(getCountry(), that.getCountry());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getNumber(), getCountry());
     }
 }
