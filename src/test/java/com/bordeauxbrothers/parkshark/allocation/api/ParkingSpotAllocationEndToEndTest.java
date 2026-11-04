@@ -2,6 +2,7 @@ package com.bordeauxbrothers.parkshark.allocation.api;
 
 import io.restassured.http.ContentType;
 import io.restassured.response.ValidatableResponse;
+import io.restassured.specification.RequestSpecification;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -17,28 +18,26 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
-import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Clock;
-import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import static com.bordeauxbrothers.parkshark.allocation.api.AllocationTestData.*;
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
 
 /**
- * PSA1 functional contract tests. These intentionally expose bugs in version 3.0.
- * Keep the current request shape: licensePlate: {number, country}, parkingLotId.
- * Starting an allocation returns 201 (@ResponseStatus(HttpStatus.CREATED)); stopping returns 200.
- * No security matrix: every request uses one valid member account.
+ * PSA1–PSA4 functional end-to-end tests against a dedicated H2 database.
+ * Shared SQL fixtures live in AllocationTestData; assertions stay with each story.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
@@ -50,18 +49,7 @@ import static org.hamcrest.Matchers.*;
 @Import(ParkingSpotAllocationEndToEndTest.FixedTime.class)
 @Execution(ExecutionMode.SAME_THREAD)
 class ParkingSpotAllocationEndToEndTest {
-    private static final int CREATED = 201;
-    // Deliberately different IDs: using memberId to look up a lot must fail.
-    private static final int MEMBER = 930001;
-    private static final int MANAGER = 930002;
-    private static final int LOT = 930101;
-    private static final int OTHER_LOT = 930102;
-    private static final int DIVISION = 930201;
-    private static final int POSTAL = 930301;
-    private static final String EMAIL = "member@psa1-test.example";
-    private static final String PASSWORD = "TestPassword123!";
-    private static final String PLATE = "PSA1-001";
-    private static final Instant NOW = Instant.parse("2026-11-04T10:00:00Z");
+    private AllocationTestData data;
 
     @LocalServerPort int port;
     @Autowired JdbcTemplate jdbc;
@@ -75,242 +63,175 @@ class ParkingSpotAllocationEndToEndTest {
 
     @BeforeEach
     void setUp() {
-        // Never delete data unless this is our dedicated in-memory database.
-        jdbc.execute((ConnectionCallback<Void>) connection -> {
-            assertThat(connection.getMetaData().getDatabaseProductName()).isEqualTo("H2");
-            assertThat(connection.getMetaData().getURL()).isEqualTo("jdbc:h2:mem:psa1_e2e");
-            return null;
-        });
-        jdbc.update("DELETE FROM parkshark.parking_spot_allocation WHERE parking_lot_id IN (?, ?)", LOT, OTHER_LOT);
-        jdbc.update("DELETE FROM parkshark.parking_lot WHERE id IN (?, ?)", LOT, OTHER_LOT);
-        jdbc.update("DELETE FROM parkshark.division WHERE id = ?", DIVISION);
-        jdbc.update("DELETE FROM parkshark.person WHERE id IN (?, ?)", MEMBER, MANAGER);
-        jdbc.update("DELETE FROM parkshark.license_plate WHERE id = ?", MEMBER);
-        jdbc.update("DELETE FROM parkshark.address WHERE id IN (?, ?, ?)", MEMBER, LOT, OTHER_LOT);
-        jdbc.update("DELETE FROM parkshark.postal_code WHERE id = ?", POSTAL);
+        data = new AllocationTestData(jdbc, passwordEncoder);
+        data.reset();
+    }
 
-        jdbc.update("INSERT INTO parkshark.postal_code (id, zip_code, label) VALUES (?, '9000', 'PSA1 City')", POSTAL);
-        for (int id : new int[]{MEMBER, LOT, OTHER_LOT}) {
-            jdbc.update("INSERT INTO parkshark.address (id, street, number, postal_code_id) VALUES (?, 'Test Street', ?, ?)",
-                    id, String.valueOf(id), POSTAL);
-        }
-        jdbc.update("INSERT INTO parkshark.license_plate (id, number, country) VALUES (?, ?, 'BE')", MEMBER, PLATE);
-        jdbc.update("""
-                INSERT INTO parkshark.person
-                (id, first_name, last_name, email, password_hash, registration_date, role,
-                 address_id, phone_number, license_plate_id, membership)
-                VALUES (?, 'Test', 'Member', ?, ?, CURRENT_DATE, 'USER', ?, '+32470000111', ?, 'BRONZE')
-                """, MEMBER, EMAIL, passwordEncoder.encode(PASSWORD), MEMBER, MEMBER);
-        jdbc.update("""
-                INSERT INTO parkshark.person
-                (id, first_name, last_name, email, password_hash, registration_date, role)
-                VALUES (?, 'Test', 'Manager', 'manager@psa1-test.example', ?, CURRENT_DATE, 'MANAGER')
-                """, MANAGER, passwordEncoder.encode(PASSWORD));
-        jdbc.update("""
-                INSERT INTO parkshark.division (id, name, original_name, director_id)
-                VALUES (?, 'PSA1 Division', 'PSA1 Original', ?)
-                """, DIVISION, MANAGER);
-        for (int id : new int[]{LOT, OTHER_LOT}) {
-            jdbc.update("""
-                    INSERT INTO parkshark.parking_lot
-                    (id, name, category, max_capacity, price_per_hour_in_euro, address_id, division_id, contact_person_id)
-                    VALUES (?, ?, 'UNDERGROUND', 2, 2.50, ?, ?, ?)
-                    """, id, "PSA1 Lot " + id, id, DIVISION, MANAGER);
-        }
+    @AfterEach
+    void tearDown() {
+        if (data != null) data.cleanUp();
     }
 
     @Nested
-    class SuccessfulAllocation {
-        @ParameterizedTest
-        @ValueSource(strings = {"BRONZE", "SILVER", "GOLD"})
-        void matchingPlate_createsActiveAllocationAndPersistsResponse(String membership) {
-            membership(membership);
-            int id = post(request(PLATE, LOT)).statusCode(CREATED)
-                    .body("id", greaterThan(0))
-                    .body("memberId", equalTo(MEMBER))
-                    .body("parkingLotId", equalTo(LOT))
-                    .body("licensePlateNumber", equalTo(PLATE))
-                    .body("status", equalTo("ACTIVE"))
-                    .body("endTime", nullValue())
-                    .extract().path("id");
-            assertThat(count()).isEqualTo(1L);
-            Map<String, Object> row = jdbc.queryForMap(
-                    "SELECT * FROM parkshark.parking_spot_allocation WHERE id = ?", id);
-            assertThat(row.get("member_id")).isEqualTo(MEMBER);
-            assertThat(row.get("parking_lot_id")).isEqualTo(LOT);
-            assertThat(row.get("license_plate_number")).isEqualTo(PLATE);
-            assertThat(row.get("status")).isEqualTo("ACTIVE");
-            assertThat(row.get("end_time")).isNull();
-            assertThat(Objects.requireNonNull(jdbc.queryForObject(
-                    "SELECT start_time FROM parkshark.parking_spot_allocation WHERE id = ?",
-                    OffsetDateTime.class, id)).toInstant()).isEqualTo(NOW);
+    class StartAllocation {
+        @Nested
+        class SuccessfulAllocation {
+            @ParameterizedTest
+            @ValueSource(strings = {"BRONZE", "SILVER", "GOLD"})
+            void matchingPlate_createsActiveAllocationAndPersistsResponse(String membership) {
+                data.membership(membership);
+                int id = post(request(PLATE, LOT)).statusCode(CREATED)
+                        .body("id", greaterThan(0))
+                        .body("memberId", equalTo(MEMBER))
+                        .body("parkingLotId", equalTo(LOT))
+                        .body("licensePlateNumber", equalTo(PLATE))
+                        .body("status", equalTo("ACTIVE"))
+                        .body("endTime", nullValue())
+                        .extract().path("id");
+                assertThat(data.count()).isEqualTo(1L);
+                Map<String, Object> row = jdbc.queryForMap(
+                        "SELECT * FROM parkshark.parking_spot_allocation WHERE id = ?", id);
+                assertThat(row.get("member_id")).isEqualTo(MEMBER);
+                assertThat(row.get("parking_lot_id")).isEqualTo(LOT);
+                assertThat(row.get("license_plate_number")).isEqualTo(PLATE);
+                assertThat(row.get("status")).isEqualTo("ACTIVE");
+                assertThat(row.get("end_time")).isNull();
+                assertThat(Objects.requireNonNull(jdbc.queryForObject(
+                        "SELECT start_time FROM parkshark.parking_spot_allocation WHERE id = ?",
+                        OffsetDateTime.class, id)).toInstant()).isEqualTo(NOW);
+            }
+
+            @Test
+            void startTimeComesFromInjectedClock() {
+                String start = post(request(PLATE, LOT)).statusCode(CREATED)
+                        .extract().path("startTime");
+                assertThat(OffsetDateTime.parse(start).toInstant()).isEqualTo(NOW);
+            }
+
+            @Test
+            void goldCanParkAnotherCar_andActualPlateIsStored() {
+                data.membership("GOLD");
+                int id = post(request("RENTAL-123", LOT)).statusCode(CREATED)
+                        .body("licensePlateNumber", equalTo("RENTAL-123"))
+                        .extract().path("id");
+                assertThat(jdbc.queryForObject(
+                        "SELECT license_plate_number FROM parkshark.parking_spot_allocation WHERE id = ?",
+                        String.class, id)).isEqualTo("RENTAL-123");
+            }
+
+            @Test
+            void generatedIdsAreUnique() {
+                int first = post(request(PLATE, LOT)).statusCode(CREATED).extract().path("id");
+                // End first session before starting another; no assumption about simultaneous sessions.
+                jdbc.update("UPDATE parkshark.parking_spot_allocation SET status = 'PASSIVE', end_time = start_time WHERE id = ?", first);
+                int second = post(request(PLATE, LOT)).statusCode(CREATED).extract().path("id");
+                assertThat(second).isNotEqualTo(first);
+                assertThat(data.count()).isEqualTo(2L);
+            }
         }
 
-        @Test
-        void startTimeComesFromInjectedClock() {
-            String start = post(request(PLATE, LOT)).statusCode(CREATED)
-                    .extract().path("startTime");
-            assertThat(OffsetDateTime.parse(start).toInstant()).isEqualTo(NOW);
+        @Nested
+        class BusinessRules {
+            @ParameterizedTest
+            @ValueSource(strings = {"BRONZE", "SILVER"})
+            void differentPlateIsRejected(String membership) {
+                data.membership(membership);
+                post(request("OTHER-123", LOT)).statusCode(400);
+                assertThat(data.count()).isZero();
+            }
+
+            @Test
+            void unknownLotIsRejected() {
+                post(request(PLATE, 999999)).statusCode(404);
+                assertThat(data.count()).isZero();
+            }
+
+            @Test
+            void exactlyFullLotIsRejected() {
+                data.allocation(LOT, "ACTIVE");
+                data.allocation(LOT, "ACTIVE");
+                post(request(PLATE, LOT)).statusCode(409);
+                assertThat(data.count()).isEqualTo(2L);
+            }
+
+            @Test
+            void lastAvailableSpotCanBeTaken_butNextRequestIsRejected() {
+                data.allocation(LOT, "ACTIVE");
+                post(request(PLATE, LOT)).statusCode(CREATED);
+                assertThat(data.count()).isEqualTo(2L);
+                post(request(PLATE, LOT)).statusCode(409);
+                assertThat(data.count()).isEqualTo(2L);
+            }
+
+            @Test
+            void allocationsInOtherLotsDoNotConsumeRequestedLotCapacity() {
+                data.allocation(OTHER_LOT, "ACTIVE");
+                data.allocation(OTHER_LOT, "ACTIVE");
+                post(request(PLATE, LOT)).statusCode(CREATED).body("parkingLotId", equalTo(LOT));
+                assertThat(data.count()).isEqualTo(3L);
+            }
+
+            @Test
+            void stoppedAndInvoicedAllocationsDoNotConsumeCapacity() {
+                data.allocation(LOT, "PASSIVE");
+                data.allocation(LOT, "INVOICED");
+                post(request(PLATE, LOT)).statusCode(CREATED);
+                assertThat(data.count()).isEqualTo(3L);
+            }
         }
 
-        @Test
-        void goldCanParkAnotherCar_andActualPlateIsStored() {
-            membership("GOLD");
-            int id = post(request("RENTAL-123", LOT)).statusCode(CREATED)
-                    .body("licensePlateNumber", equalTo("RENTAL-123"))
-                    .extract().path("id");
-            assertThat(jdbc.queryForObject(
-                    "SELECT license_plate_number FROM parkshark.parking_spot_allocation WHERE id = ?",
-                    String.class, id)).isEqualTo("RENTAL-123");
-        }
+        @Nested
+        class RequestValidation {
+            @Test
+            void missingPlateIsRejected() {
+                Map<String, Object> body = request(PLATE, LOT);
+                body.remove("licensePlate");
+                post(body).statusCode(400);
+                assertThat(data.count()).isZero();
+            }
 
-        @Test
-        void generatedIdsAreUnique() {
-            int first = post(request(PLATE, LOT)).statusCode(CREATED).extract().path("id");
-            // End first session before starting another; no assumption about simultaneous sessions.
-            jdbc.update("UPDATE parkshark.parking_spot_allocation SET status = 'PASSIVE', end_time = start_time WHERE id = ?", first);
-            int second = post(request(PLATE, LOT)).statusCode(CREATED).extract().path("id");
-            assertThat(second).isNotEqualTo(first);
-            assertThat(count()).isEqualTo(2L);
-        }
-    }
+            @ParameterizedTest
+            @ValueSource(strings = {"", "   "})
+            void blankPlateIsRejectedEvenForGold(String plate) {
+                data.membership("GOLD");
+                post(request(plate, LOT)).statusCode(400);
+                assertThat(data.count()).isZero();
+            }
 
-    @Nested
-    class BusinessRules {
-        @ParameterizedTest
-        @ValueSource(strings = {"BRONZE", "SILVER"})
-        void differentPlateIsRejected(String membership) {
-            membership(membership);
-            post(request("OTHER-123", LOT)).statusCode(400);
-            assertThat(count()).isZero();
-        }
+            @Test
+            void missingPlateNumberIsRejectedEvenForGold() {
+                data.membership("GOLD");
+                Map<String, Object> body = request(PLATE, LOT);
+                body.put("licensePlate", Map.of("country", "BE"));
+                post(body).statusCode(400);
+                assertThat(data.count()).isZero();
+            }
 
-        @Test
-        void unknownLotIsRejected() {
-            post(request(PLATE, 999999)).statusCode(404);
-            assertThat(count()).isZero();
-        }
+            @Test
+            void missingParkingLotIdIsRejected() {
+                Map<String, Object> body = request(PLATE, LOT);
+                body.remove("parkingLotId");
+                post(body).statusCode(400);
+                assertThat(data.count()).isZero();
+            }
 
-        @Test
-        void exactlyFullLotIsRejected() {
-            seedAllocation(LOT, "ACTIVE");
-            seedAllocation(LOT, "ACTIVE");
-            post(request(PLATE, LOT)).statusCode(409);
-            assertThat(count()).isEqualTo(2L);
-        }
-
-        @Test
-        void lastAvailableSpotCanBeTaken_butNextRequestIsRejected() {
-            seedAllocation(LOT, "ACTIVE");
-            post(request(PLATE, LOT)).statusCode(CREATED);
-            assertThat(count()).isEqualTo(2L);
-            post(request(PLATE, LOT)).statusCode(409);
-            assertThat(count()).isEqualTo(2L);
-        }
-
-        @Test
-        void allocationsInOtherLotsDoNotConsumeRequestedLotCapacity() {
-            seedAllocation(OTHER_LOT, "ACTIVE");
-            seedAllocation(OTHER_LOT, "ACTIVE");
-            post(request(PLATE, LOT)).statusCode(CREATED).body("parkingLotId", equalTo(LOT));
-            assertThat(count()).isEqualTo(3L);
-        }
-
-        @Test
-        void stoppedAndInvoicedAllocationsDoNotConsumeCapacity() {
-            seedAllocation(LOT, "PASSIVE");
-            seedAllocation(LOT, "INVOICED");
-            post(request(PLATE, LOT)).statusCode(CREATED);
-            assertThat(count()).isEqualTo(3L);
-        }
-    }
-
-    @Nested
-    class RequestValidation {
-        @Test
-        void missingPlateIsRejected() {
-            Map<String, Object> body = request(PLATE, LOT);
-            body.remove("licensePlate");
-            post(body).statusCode(400);
-            assertThat(count()).isZero();
-        }
-
-        @ParameterizedTest
-        @ValueSource(strings = {"", "   "})
-        void blankPlateIsRejectedEvenForGold(String plate) {
-            membership("GOLD");
-            post(request(plate, LOT)).statusCode(400);
-            assertThat(count()).isZero();
-        }
-
-        @Test
-        void missingPlateNumberIsRejectedEvenForGold() {
-            membership("GOLD");
-            Map<String, Object> body = request(PLATE, LOT);
-            body.put("licensePlate", Map.of("country", "BE"));
-            post(body).statusCode(400);
-            assertThat(count()).isZero();
-        }
-
-        @Test
-        void missingParkingLotIdIsRejected() {
-            Map<String, Object> body = request(PLATE, LOT);
-            body.remove("parkingLotId");
-            post(body).statusCode(400);
-            assertThat(count()).isZero();
-        }
-
-        @ParameterizedTest
-        @ValueSource(ints = {0, -1})
-        void nonPositiveParkingLotIdIsRejected(int lotId) {
-            post(request(PLATE, lotId)).statusCode(400);
-            assertThat(count()).isZero();
+            @ParameterizedTest
+            @ValueSource(ints = {0, -1})
+            void nonPositiveParkingLotIdIsRejected(int lotId) {
+                post(request(PLATE, lotId)).statusCode(400);
+                assertThat(data.count()).isZero();
+            }
         }
     }
 
     @Nested
     class StopAllocation {
 
-        private static final int OTHER_MEMBER = 930003;
         private static final String OTHER_EMAIL = "other@psa2-test.example";
 
         @BeforeEach
         void createOtherMember() {
-            // A second real member is needed to test allocation ownership.
-            jdbc.update("""
-                INSERT INTO parkshark.license_plate (id, number, country)
-                VALUES (?, 'PSA2-OTHER', 'BE')
-                """, OTHER_MEMBER);
-
-            // Sharing an address is allowed; each member has their own licence plate.
-            jdbc.update("""
-                INSERT INTO parkshark.person (
-                    id, first_name, last_name, email, password_hash,
-                    registration_date, role, address_id, phone_number,
-                    license_plate_id, membership
-                )
-                VALUES (
-                    ?, 'Other', 'Member', ?, ?,
-                    CURRENT_DATE, 'USER', ?, '+32470000222', ?, 'BRONZE'
-                )
-                """,
-                    OTHER_MEMBER,
-                    OTHER_EMAIL,
-                    passwordEncoder.encode(PASSWORD),
-                    MEMBER,
-                    OTHER_MEMBER);
-        }
-
-        @AfterEach
-        void removeOtherMember() {
-            jdbc.update(
-                    "DELETE FROM parkshark.person WHERE id = ?",
-                    OTHER_MEMBER
-            );
-            jdbc.update(
-                    "DELETE FROM parkshark.license_plate WHERE id = ?",
-                    OTHER_MEMBER
-            );
+            data.member(OTHER_MEMBER, OTHER_EMAIL, "PSA2-OTHER");
         }
 
         @Nested
@@ -319,9 +240,9 @@ class ParkingSpotAllocationEndToEndTest {
             @ParameterizedTest
             @ValueSource(strings = {"BRONZE", "SILVER", "GOLD"})
             void ownerCanStopActiveAllocation(String membership) {
-                membership(membership);
-                int id = createAllocation("ACTIVE");
-                OffsetDateTime originalStart = timeColumn(id, "start_time");
+                data.membership(membership);
+                int id = data.allocation("ACTIVE");
+                OffsetDateTime originalStart = data.time(id, "start_time");
 
                 var response = stop(id, EMAIL)
                         .statusCode(200)
@@ -343,34 +264,34 @@ class ParkingSpotAllocationEndToEndTest {
                 ).isEqualTo(NOW);
 
                 // Check committed database state, not only the response.
-                assertThat(status(id)).isEqualTo("PASSIVE");
-                assertThat(timeColumn(id, "end_time").toInstant()).isEqualTo(NOW);
-                assertThat(timeColumn(id, "start_time")).isEqualTo(originalStart);
-                assertThat(count()).isEqualTo(1L);
+                assertThat(data.status(id)).isEqualTo("PASSIVE");
+                assertThat(data.time(id, "end_time").toInstant()).isEqualTo(NOW);
+                assertThat(data.time(id, "start_time")).isEqualTo(originalStart);
+                assertThat(data.count()).isEqualTo(1L);
             }
 
             @Test
             void stoppingOneAllocationDoesNotChangeAnother() {
-                int stoppedId = createAllocation("ACTIVE");
-                int untouchedId = createAllocation("ACTIVE");
+                int stoppedId = data.allocation("ACTIVE");
+                int untouchedId = data.allocation("ACTIVE");
 
-                Map<String, Object> untouchedBefore = row(untouchedId);
+                Map<String, Object> untouchedBefore = data.row(untouchedId);
 
                 stop(stoppedId, EMAIL).statusCode(200);
 
-                assertThat(status(stoppedId)).isEqualTo("PASSIVE");
-                assertThat(row(untouchedId)).isEqualTo(untouchedBefore);
-                assertThat(count()).isEqualTo(2L);
+                assertThat(data.status(stoppedId)).isEqualTo("PASSIVE");
+                assertThat(data.row(untouchedId)).isEqualTo(untouchedBefore);
+                assertThat(data.count()).isEqualTo(2L);
             }
 
             @Test
             void stoppingAllocationFreesParkingCapacity() {
-                int firstId = createAllocation("ACTIVE");
-                int secondId = createAllocation("ACTIVE");
+                int firstId = data.allocation("ACTIVE");
+                int secondId = data.allocation("ACTIVE");
 
                 // The parking lot has capacity 2 and is initially full.
                 post(request(PLATE, LOT)).statusCode(409);
-                assertThat(count()).isEqualTo(2L);
+                assertThat(data.count()).isEqualTo(2L);
 
                 stop(firstId, EMAIL).statusCode(200);
 
@@ -381,8 +302,8 @@ class ParkingSpotAllocationEndToEndTest {
                         .extract().path("id");
 
                 assertThat(newId).isNotEqualTo(firstId).isNotEqualTo(secondId);
-                assertThat(status(firstId)).isEqualTo("PASSIVE");
-                assertThat(status(secondId)).isEqualTo("ACTIVE");
+                assertThat(data.status(firstId)).isEqualTo("PASSIVE");
+                assertThat(data.status(secondId)).isEqualTo("ACTIVE");
 
                 assertThat(jdbc.queryForObject("""
                     SELECT COUNT(*)
@@ -391,7 +312,7 @@ class ParkingSpotAllocationEndToEndTest {
                     """, Long.class, LOT)).isEqualTo(2L);
 
                 // Stopping preserves history; it does not delete the allocation.
-                assertThat(count()).isEqualTo(3L);
+                assertThat(data.count()).isEqualTo(3L);
             }
         }
 
@@ -400,17 +321,17 @@ class ParkingSpotAllocationEndToEndTest {
 
             @Test
             void anotherMemberCannotStopAllocation() {
-                int id = createAllocation("ACTIVE");
-                Map<String, Object> before = row(id);
+                int id = data.allocation("ACTIVE");
+                Map<String, Object> before = data.row(id);
 
                 stop(id, OTHER_EMAIL).statusCode(403);
 
-                assertThat(row(id)).isEqualTo(before);
-                assertThat(count()).isEqualTo(1L);
+                assertThat(data.row(id)).isEqualTo(before);
+                assertThat(data.count()).isEqualTo(1L);
 
                 // A rejected attempt does not prevent the real owner from stopping.
                 stop(id, EMAIL).statusCode(200);
-                assertThat(status(id)).isEqualTo("PASSIVE");
+                assertThat(data.status(id)).isEqualTo("PASSIVE");
             }
         }
 
@@ -420,27 +341,27 @@ class ParkingSpotAllocationEndToEndTest {
             @ParameterizedTest
             @ValueSource(strings = {"PASSIVE", "INVOICED"})
             void nonActiveAllocationCannotBeStopped(String initialStatus) {
-                int id = createAllocation(initialStatus);
-                Map<String, Object> before = row(id);
+                int id = data.allocation(initialStatus);
+                Map<String, Object> before = data.row(id);
 
                 stop(id, EMAIL).statusCode(409);
 
                 // In particular, the original end time must not be overwritten.
-                assertThat(row(id)).isEqualTo(before);
-                assertThat(count()).isEqualTo(1L);
+                assertThat(data.row(id)).isEqualTo(before);
+                assertThat(data.count()).isEqualTo(1L);
             }
 
             @Test
             void stoppingTwiceIsRejectedAndPreservesFirstStop() {
-                int id = createAllocation("ACTIVE");
+                int id = data.allocation("ACTIVE");
 
                 stop(id, EMAIL).statusCode(200);
-                Map<String, Object> afterFirstStop = row(id);
+                Map<String, Object> afterFirstStop = data.row(id);
 
                 stop(id, EMAIL).statusCode(409);
 
-                assertThat(row(id)).isEqualTo(afterFirstStop);
-                assertThat(count()).isEqualTo(1L);
+                assertThat(data.row(id)).isEqualTo(afterFirstStop);
+                assertThat(data.count()).isEqualTo(1L);
             }
         }
 
@@ -449,77 +370,577 @@ class ParkingSpotAllocationEndToEndTest {
 
             @Test
             void unknownAllocationReturnsNotFound() {
-                int existingId = createAllocation("ACTIVE");
-                Map<String, Object> before = row(existingId);
+                int existingId = data.allocation("ACTIVE");
+                Map<String, Object> before = data.row(existingId);
 
                 stop(999999, EMAIL).statusCode(404);
 
-                assertThat(row(existingId)).isEqualTo(before);
-                assertThat(count()).isEqualTo(1L);
+                assertThat(data.row(existingId)).isEqualTo(before);
+                assertThat(data.count()).isEqualTo(1L);
             }
 
             @Test
             void nonNumericIdReturnsBadRequest() {
                 stop("not-a-number", EMAIL).statusCode(400);
 
-                assertThat(count()).isZero();
+                assertThat(data.count()).isZero();
             }
         }
 
-        private ValidatableResponse stop(int id, String email) {
-            return stop(String.valueOf(id), email);
+    }
+
+    @Nested
+    class GetAllAllocations {
+
+        private static final int OLDEST = 940101;
+        private static final int STOPPED = 940102;
+        private static final int INVOICED = 940103;
+        private static final int NEWEST = 940104;
+
+        @BeforeEach
+        void createAllocationsForOverview() {
+            // Insert deliberately out of chronological order.
+            // Sorting by insertion order or ID must not accidentally pass.
+            data.allocation(NEWEST, OTHER_LOT, "ACTIVE", 1);
+            data.allocation(STOPPED, LOT, "PASSIVE", 3);
+            data.allocation(OLDEST, LOT, "ACTIVE", 4);
+            data.allocation(INVOICED, OTHER_LOT, "INVOICED", 2);
         }
 
-        private ValidatableResponse stop(String id, String email) {
-            return given()
-                    .baseUri("http://localhost")
-                    .port(port)
-                    .auth().preemptive().basic(email, PASSWORD)
-                    .contentType(ContentType.JSON)
-                    .accept(ContentType.JSON)
-                    .when()
-                    .put("/allocation/stop/{id}", id)
-                    .then()
-                    .log().ifValidationFails();
+        @Nested
+        class DefaultOverview {
+
+            @Test
+            void withoutFiltersReturnsAllStatusesAndLots_oldestFirst() {
+                overview(Map.of())
+                        .statusCode(200)
+                        .contentType(ContentType.JSON)
+                        .body("id", contains(
+                                OLDEST, STOPPED, INVOICED, NEWEST
+                        ))
+                        .body("status", contains(
+                                "ACTIVE", "PASSIVE", "INVOICED", "ACTIVE"
+                        ))
+                        .body("parkingLotId", contains(
+                                LOT, LOT, OTHER_LOT, OTHER_LOT
+                        ));
+            }
+
+            @Test
+            void responseContainsAllocationDetails() {
+                var response = overview(Map.of())
+                        .statusCode(200)
+                        .body("[0].id", equalTo(OLDEST))
+                        .body("[0].memberId", equalTo(MEMBER))
+                        .body("[0].parkingLotId", equalTo(LOT))
+                        .body("[0].licensePlateNumber", equalTo(PLATE))
+                        .body("[0].status", equalTo("ACTIVE"))
+                        .body("[0].endTime", nullValue())
+                        .body("[1].status", equalTo("PASSIVE"))
+                        .body("[1].endTime", notNullValue())
+                        .extract();
+
+                assertThat(OffsetDateTime.parse(
+                        response.path("[0].startTime")
+                ).toInstant()).isEqualTo(NOW.minusSeconds(4 * 3600));
+
+                assertThat(OffsetDateTime.parse(
+                        response.path("[1].endTime")
+                ).toInstant()).isEqualTo(
+                        NOW.minusSeconds(3 * 3600).plusSeconds(1800)
+                );
+            }
+
+            @Test
+            void emptyDatabaseReturnsEmptyList() {
+                jdbc.update("""
+                    DELETE FROM parkshark.parking_spot_allocation
+                    WHERE parking_lot_id IN (?, ?)
+                    """, LOT, OTHER_LOT);
+
+                overview(Map.of())
+                        .statusCode(200)
+                        .body("$", hasSize(0));
+            }
+
+            @Test
+            void gettingOverviewDoesNotChangeDatabase() {
+                List<Map<String, Object>> before = data.rows();
+
+                overview(Map.of(
+                        "status", "ACTIVE",
+                        "limit", 1,
+                        "desc", true
+                ))
+                        .statusCode(200)
+                        .body("id", contains(NEWEST));
+
+                assertThat(data.rows()).isEqualTo(before);
+            }
         }
 
-        private int createAllocation(String initialStatus) {
-            // Reuse the outer class's SQL fixture helper.
-            seedAllocation(LOT, initialStatus);
+        @Nested
+        class StatusFiltering {
 
-            // Each test runs sequentially in its dedicated H2 database.
-            return jdbc.queryForObject("""
-                SELECT MAX(id)
-                FROM parkshark.parking_spot_allocation
-                WHERE member_id = ? AND parking_lot_id = ?
-                """, Integer.class, MEMBER, LOT);
+            @Test
+            void activeFilterReturnsOnlyActiveAllocations() {
+                overview(Map.of("status", "ACTIVE"))
+                        .statusCode(200)
+                        .body("id", contains(OLDEST, NEWEST))
+                        .body("status", everyItem(equalTo("ACTIVE")));
+            }
+
+            @Test
+            void passiveFilterExcludesActiveAndInvoicedAllocations() {
+                overview(Map.of("status", "PASSIVE"))
+                        .statusCode(200)
+                        .body("id", contains(STOPPED))
+                        .body("status", contains("PASSIVE"));
+            }
+
+            @Test
+            void invoicedFilterReturnsOnlyInvoicedAllocations() {
+                overview(Map.of("status", "INVOICED"))
+                        .statusCode(200)
+                        .body("id", contains(INVOICED))
+                        .body("status", contains("INVOICED"));
+            }
+
+            @Test
+            void noMatchingStatusReturnsEmptyList() {
+                jdbc.update("""
+                    DELETE FROM parkshark.parking_spot_allocation
+                    WHERE id = ?
+                    """, STOPPED);
+
+                overview(Map.of("status", "PASSIVE"))
+                        .statusCode(200)
+                        .body("$", hasSize(0));
+
+                // Other allocations still exist.
+                assertThat(data.count()).isEqualTo(3L);
+            }
         }
 
-        private Map<String, Object> row(int id) {
-            return jdbc.queryForMap("""
-                SELECT *
-                FROM parkshark.parking_spot_allocation
-                WHERE id = ?
-                """, id);
+        @Nested
+        class Ordering {
+
+            @Test
+            void explicitAscendingReturnsOldestFirst() {
+                overview(Map.of("desc", false))
+                        .statusCode(200)
+                        .body("id", contains(
+                                OLDEST, STOPPED, INVOICED, NEWEST
+                        ));
+            }
+
+            @Test
+            void descendingReturnsNewestFirst() {
+                overview(Map.of("desc", true))
+                        .statusCode(200)
+                        .body("id", contains(
+                                NEWEST, INVOICED, STOPPED, OLDEST
+                        ));
+            }
+
+            @Test
+            void descendingAlsoWorksWithStatusFilter() {
+                overview(Map.of(
+                        "status", "ACTIVE",
+                        "desc", true
+                ))
+                        .statusCode(200)
+                        .body("id", contains(NEWEST, OLDEST));
+            }
+
+            @Test
+            void equalStartTimesAreOrderedByIdAscending() {
+                giveActiveAllocationsSameStartTime();
+
+                overview(Map.of("status", "ACTIVE"))
+                        .statusCode(200)
+                        .body("id", contains(OLDEST, NEWEST));
+            }
+
+            @Test
+            void equalStartTimesAreOrderedByIdDescending() {
+                giveActiveAllocationsSameStartTime();
+
+                overview(Map.of(
+                        "status", "ACTIVE",
+                        "desc", true
+                ))
+                        .statusCode(200)
+                        .body("id", contains(NEWEST, OLDEST));
+            }
+
+            private void giveActiveAllocationsSameStartTime() {
+                jdbc.update("""
+                    UPDATE parkshark.parking_spot_allocation
+                    SET start_time = ?
+                    WHERE id IN (?, ?)
+                    """,
+                        OffsetDateTime.ofInstant(
+                                NOW.minusSeconds(3600),
+                                ZoneOffset.UTC
+                        ),
+                        OLDEST,
+                        NEWEST);
+            }
         }
 
-        private String status(int id) {
-            return jdbc.queryForObject("""
-                SELECT status
-                FROM parkshark.parking_spot_allocation
-                WHERE id = ?
-                """, String.class, id);
+        @Nested
+        class Limiting {
+
+            @Test
+            void limitOneReturnsFirstAllocation() {
+                overview(Map.of("limit", 1))
+                        .statusCode(200)
+                        .body("id", contains(OLDEST));
+            }
+
+            @Test
+            void limitIsAppliedAfterSorting() {
+                overview(Map.of(
+                        "limit", 2,
+                        "desc", true
+                ))
+                        .statusCode(200)
+                        .body("id", contains(NEWEST, INVOICED));
+            }
+
+            @Test
+            void limitEqualToResultCountReturnsAllResults() {
+                overview(Map.of("limit", 4))
+                        .statusCode(200)
+                        .body("id", contains(
+                                OLDEST, STOPPED, INVOICED, NEWEST
+                        ));
+            }
+
+            @Test
+            void limitLargerThanResultCountReturnsAvailableResults() {
+                overview(Map.of("limit", 100))
+                        .statusCode(200)
+                        .body("id", contains(
+                                OLDEST, STOPPED, INVOICED, NEWEST
+                        ));
+            }
+
+            @Test
+            void filteringHappensBeforeLimiting() {
+                // If the implementation limits first, STOPPED could occupy
+                // the second slot and incorrectly exclude NEWEST.
+                overview(Map.of(
+                        "status", "ACTIVE",
+                        "limit", 2
+                ))
+                        .statusCode(200)
+                        .body("id", contains(OLDEST, NEWEST));
+            }
+
+            @Test
+            void allThreeParametersWorkTogether() {
+                overview(Map.of(
+                        "status", "ACTIVE",
+                        "limit", 1,
+                        "desc", true
+                ))
+                        .statusCode(200)
+                        .body("id", contains(NEWEST))
+                        .body("status", contains("ACTIVE"));
+            }
         }
 
-        private OffsetDateTime timeColumn(int id, String column) {
-            // Column names are fixed by test code, never supplied by an API caller.
-            return jdbc.queryForObject(
-                    "SELECT " + column
-                            + " FROM parkshark.parking_spot_allocation WHERE id = ?",
-                    OffsetDateTime.class,
-                    id
+        @Nested
+        class InvalidParameters {
+
+            @ParameterizedTest
+            @ValueSource(ints = {0, -1, -100})
+            void nonPositiveLimitReturnsBadRequest(int limit) {
+                assertRejectedWithoutChanges(Map.of("limit", limit));
+            }
+
+            @ParameterizedTest
+            @ValueSource(strings = {"abc", "1.5", "2147483648"})
+            void invalidIntegerLimitReturnsBadRequest(String limit) {
+                assertRejectedWithoutChanges(Map.of("limit", limit));
+            }
+
+            @Test
+            void unknownStatusReturnsBadRequest() {
+                assertRejectedWithoutChanges(Map.of("status", "UNKNOWN"));
+            }
+
+            @Test
+            void invalidBooleanReturnsBadRequest() {
+                assertRejectedWithoutChanges(Map.of("desc", "invalid"));
+            }
+
+            private void assertRejectedWithoutChanges(
+                    Map<String, Object> parameters
+            ) {
+                List<Map<String, Object>> before = data.rows();
+
+                overview(parameters).statusCode(400);
+
+                assertThat(data.rows()).isEqualTo(before);
+            }
+        }
+
+    }
+
+    @Nested
+    class GetAllocationsForMember {
+
+
+        private static final int MEMBER_ACTIVE = 950101;
+        private static final int MEMBER_PASSIVE = 950102;
+        private static final int MEMBER_INVOICED = 950103;
+
+        private static final int SECOND_ACTIVE = 950104;
+        private static final int SECOND_PASSIVE = 950105;
+        private static final int SECOND_INVOICED = 950106;
+
+        @BeforeEach
+        void createMemberAllocations() {
+            data.member(SECOND_MEMBER, "second@psa4-test.example", "PSA4-SECOND");
+            // Both members have every status, including allocations
+            // in the same parking lot. This exposes missing member filters.
+            data.allocation(
+                    MEMBER_ACTIVE, MEMBER, LOT, "ACTIVE", PLATE, 1
             );
+            data.allocation(
+                    MEMBER_PASSIVE, MEMBER, OTHER_LOT, "PASSIVE", PLATE, 3
+            );
+            data.allocation(
+                    MEMBER_INVOICED, MEMBER, LOT, "INVOICED", PLATE, 5
+            );
+
+            data.allocation(
+                    SECOND_ACTIVE, SECOND_MEMBER, LOT,
+                    "ACTIVE", "PSA4-SECOND", 2
+            );
+            data.allocation(
+                    SECOND_PASSIVE, SECOND_MEMBER, OTHER_LOT,
+                    "PASSIVE", "PSA4-SECOND", 4
+            );
+            data.allocation(
+                    SECOND_INVOICED, SECOND_MEMBER, LOT,
+                    "INVOICED", "PSA4-SECOND", 6
+            );
+                }
+
+        @Nested
+        class MemberSelection {
+
+            @Test
+            void withoutStatusReturnsAllAllocationsOfRequestedMember() {
+                forMember(MEMBER, Map.of())
+                        .statusCode(200)
+                        .contentType(ContentType.JSON)
+                        .body("id", containsInAnyOrder(
+                                MEMBER_ACTIVE,
+                                MEMBER_PASSIVE,
+                                MEMBER_INVOICED
+                        ))
+                        .body("memberId", everyItem(equalTo(MEMBER)))
+                        .body("status", containsInAnyOrder(
+                                "ACTIVE", "PASSIVE", "INVOICED"
+                        ));
+            }
+
+            @Test
+            void requestingAnotherMemberReturnsThatMembersAllocations() {
+                forMember(SECOND_MEMBER, Map.of())
+                        .statusCode(200)
+                        .body("id", containsInAnyOrder(
+                                SECOND_ACTIVE,
+                                SECOND_PASSIVE,
+                                SECOND_INVOICED
+                        ))
+                        .body(
+                                "memberId",
+                                everyItem(equalTo(SECOND_MEMBER))
+                        );
+            }
+
+            @Test
+            void allocationsAcrossDifferentParkingLotsAreIncluded() {
+                forMember(MEMBER, Map.of())
+                        .statusCode(200)
+                        .body("id", containsInAnyOrder(
+                                MEMBER_ACTIVE,
+                                MEMBER_PASSIVE,
+                                MEMBER_INVOICED
+                        ))
+                        .body("parkingLotId", containsInAnyOrder(
+                                LOT, OTHER_LOT, LOT
+                        ));
+            }
+
+            @Test
+            void existingMemberWithoutAllocationsGetsEmptyList() {
+                jdbc.update("""
+                    DELETE FROM parkshark.parking_spot_allocation
+                    WHERE member_id = ?
+                    """, MEMBER);
+
+                forMember(MEMBER, Map.of())
+                        .statusCode(200)
+                        .body("$", hasSize(0));
+
+                // The second member's allocations must still exist.
+                assertThat(data.count()).isEqualTo(3L);
+            }
+
+            @Test
+            void unknownMemberGetsEmptyListWithCurrentContract() {
+                forMember(999999, Map.of())
+                        .statusCode(200)
+                        .body("$", hasSize(0));
+
+                assertThat(data.count()).isEqualTo(6L);
+            }
         }
+
+        @Nested
+        class StatusFiltering {
+
+            @Test
+            void activeFilterReturnsOnlyRequestedMembersActiveAllocations() {
+                forMember(MEMBER, Map.of("status", "ACTIVE"))
+                        .statusCode(200)
+                        .body("id", contains(MEMBER_ACTIVE))
+                        .body("memberId", contains(MEMBER))
+                        .body("status", contains("ACTIVE"));
+            }
+
+            @Test
+            void passiveFilterExcludesInvoicedAndOtherMembersAllocations() {
+                forMember(MEMBER, Map.of("status", "PASSIVE"))
+                        .statusCode(200)
+                        .body("id", contains(MEMBER_PASSIVE))
+                        .body("memberId", contains(MEMBER))
+                        .body("status", contains("PASSIVE"));
+            }
+
+            @Test
+            void invoicedFilterReturnsOnlyRequestedMembersInvoicedAllocations() {
+                forMember(MEMBER, Map.of("status", "INVOICED"))
+                        .statusCode(200)
+                        .body("id", contains(MEMBER_INVOICED))
+                        .body("memberId", contains(MEMBER))
+                        .body("status", contains("INVOICED"));
+            }
+
+            @Test
+            void statusFilterAlsoWorksForSecondMember() {
+                forMember(SECOND_MEMBER, Map.of("status", "ACTIVE"))
+                        .statusCode(200)
+                        .body("id", contains(SECOND_ACTIVE))
+                        .body("memberId", contains(SECOND_MEMBER));
+            }
+
+            @Test
+            void noMatchingStatusReturnsEmptyList_evenWhenAnotherMemberMatches() {
+                jdbc.update("""
+                    DELETE FROM parkshark.parking_spot_allocation
+                    WHERE id = ?
+                    """, MEMBER_PASSIVE);
+
+                forMember(MEMBER, Map.of("status", "PASSIVE"))
+                        .statusCode(200)
+                        .body("$", hasSize(0));
+
+                // A PASSIVE allocation exists, but belongs to another member.
+                forMember(SECOND_MEMBER, Map.of("status", "PASSIVE"))
+                        .statusCode(200)
+                        .body("id", contains(SECOND_PASSIVE));
+            }
+
+            @Test
+            void unknownMemberWithStatusGetsEmptyList() {
+                forMember(999999, Map.of("status", "ACTIVE"))
+                        .statusCode(200)
+                        .body("$", hasSize(0));
+            }
+        }
+
+        @Nested
+        class ResponseAndPersistence {
+
+            @Test
+            void responseContainsCorrectAllocationDetails() {
+                var response = forMember(MEMBER, Map.of("status", "PASSIVE"))
+                        .statusCode(200)
+                        .contentType(ContentType.JSON)
+                        .body("$", hasSize(1))
+                        .body("[0].id", equalTo(MEMBER_PASSIVE))
+                        .body("[0].memberId", equalTo(MEMBER))
+                        .body("[0].parkingLotId", equalTo(OTHER_LOT))
+                        .body("[0].licensePlateNumber", equalTo(PLATE))
+                        .body("[0].status", equalTo("PASSIVE"))
+                        .extract();
+
+                assertThat(OffsetDateTime.parse(
+                        response.path("[0].startTime")
+                ).toInstant()).isEqualTo(NOW.minusSeconds(3 * 3600));
+
+                assertThat(OffsetDateTime.parse(
+                        response.path("[0].endTime")
+                ).toInstant()).isEqualTo(
+                        NOW.minusSeconds(3 * 3600).plusSeconds(1800)
+                );
+            }
+
+            @Test
+            void activeAllocationHasNoEndTime() {
+                forMember(MEMBER, Map.of("status", "ACTIVE"))
+                        .statusCode(200)
+                        .body("$", hasSize(1))
+                        .body("[0].id", equalTo(MEMBER_ACTIVE))
+                        .body("[0].startTime", notNullValue())
+                        .body("[0].endTime", nullValue());
+            }
+
+            @Test
+            void readingAllocationsDoesNotChangeEitherMembersData() {
+                List<Map<String, Object>> before = data.rows();
+
+                forMember(MEMBER, Map.of()).statusCode(200);
+                forMember(SECOND_MEMBER, Map.of("status", "PASSIVE"))
+                        .statusCode(200);
+
+                assertThat(data.rows()).isEqualTo(before);
+            }
+        }
+
+        @Nested
+        class InvalidParameters {
+
+            @Test
+            void unknownStatusReturnsBadRequestWithoutChangingData() {
+                List<Map<String, Object>> before = data.rows();
+
+                forMember(MEMBER, Map.of("status", "UNKNOWN"))
+                        .statusCode(400);
+
+                assertThat(data.rows()).isEqualTo(before);
+            }
+
+            @ParameterizedTest
+            @ValueSource(strings = {"abc", "1.5", "2147483648"})
+            void invalidIntegerMemberIdReturnsBadRequest(String memberId) {
+                List<Map<String, Object>> before = data.rows();
+
+                forMember(memberId, Map.of())
+                        .statusCode(400);
+
+                assertThat(data.rows()).isEqualTo(before);
+            }
+        }
+
     }
 
     private Map<String, Object> request(String plate, int lot) {
@@ -529,30 +950,30 @@ class ParkingSpotAllocationEndToEndTest {
         return body;
     }
 
-    private ValidatableResponse post(Map<String, Object> body) {
+    // Shared HTTP helpers: no expectations here; each test owns its assertions.
+    private RequestSpecification apiAs(String email) {
         return given().baseUri("http://localhost").port(port)
-                .auth().preemptive().basic(EMAIL, PASSWORD)
-                .contentType(ContentType.JSON).accept(ContentType.JSON)
-                .body(body).when().post("/allocation")
+                .auth().preemptive().basic(email, PASSWORD)
+                .accept(ContentType.JSON);
+    }
+
+    private ValidatableResponse post(Map<String, Object> body) {
+        return apiAs(EMAIL).contentType(ContentType.JSON).body(body)
+                .when().post("/allocation").then().log().ifValidationFails();
+    }
+
+    private ValidatableResponse stop(Object id, String email) {
+        return apiAs(email).when().put("/allocation/stop/{id}", id)
                 .then().log().ifValidationFails();
     }
 
-    private void membership(String value) {
-        jdbc.update("UPDATE parkshark.person SET membership = ? WHERE id = ?", value, MEMBER);
+    private ValidatableResponse overview(Map<String, Object> parameters) {
+        return apiAs(MANAGER_EMAIL).queryParams(parameters).when().get("/allocation")
+                .then().log().ifValidationFails();
     }
 
-    private long count() {
-        return jdbc.queryForObject("SELECT COUNT(*) FROM parkshark.parking_spot_allocation WHERE parking_lot_id IN (?, ?)",
-                Long.class, LOT, OTHER_LOT);
-    }
-
-    private void seedAllocation(int lot, String status) {
-        OffsetDateTime start = OffsetDateTime.ofInstant(NOW.minusSeconds(7200), ZoneOffset.UTC);
-        OffsetDateTime end = status.equals("ACTIVE") ? null : start.plusHours(1);
-        jdbc.update("""
-                INSERT INTO parkshark.parking_spot_allocation
-                (member_id, parking_lot_id, license_plate_number, start_time, end_time, status)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """, MEMBER, lot, PLATE, start, end, status);
+    private ValidatableResponse forMember(Object memberId, Map<String, Object> parameters) {
+        return apiAs(MANAGER_EMAIL).queryParams(parameters).when()
+                .get("/allocation/member/{id}", memberId).then().log().ifValidationFails();
     }
 }
