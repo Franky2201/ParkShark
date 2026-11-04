@@ -1,7 +1,6 @@
 package com.bordeauxbrothers.parkshark.division.service;
 
 import com.bordeauxbrothers.parkshark.common.exception.ResourceNotFoundException;
-import com.bordeauxbrothers.parkshark.division.api.DivisionMapper;
 import com.bordeauxbrothers.parkshark.division.api.dto.CreateDivisionDto;
 import com.bordeauxbrothers.parkshark.division.api.dto.DivisionDto;
 import com.bordeauxbrothers.parkshark.division.domain.Division;
@@ -127,7 +126,8 @@ class DivisionServiceTest {
             assertThat(result.name()).isEqualTo("The Wall");
             assertThat(result.originalName()).isEqualTo("Castle Black Parking");
             assertThat(result.directorId()).isEqualTo(2);
-            assertThat(result.parentDivisionId()).isEqualTo(7);
+            assertThat(result.parentDivision().id()).isEqualTo(7);
+            assertThat(result.parentDivision().name()).isEqualTo("The North");
         }
 
         @Test
@@ -156,7 +156,7 @@ class DivisionServiceTest {
             DivisionDto result = divisionService.createDivision(new CreateDivisionDto("The North", "Winterfell Parking", 1));
 
             // THEN
-            assertThat(result.parentDivisionId()).isNull();
+            assertThat(result.parentDivision()).isNull();
         }
     }
 
