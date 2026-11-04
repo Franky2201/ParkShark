@@ -2,6 +2,8 @@ package com.bordeauxbrothers.parkshark.person.domain.persondetails;
 
 import jakarta.persistence.*;
 
+import java.util.Objects;
+
 @Entity
 public class LicensePlate {
     @Id
@@ -27,5 +29,17 @@ public class LicensePlate {
     }
     public Integer getId() {
         return id;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        LicensePlate that = (LicensePlate)o;
+        return Objects.equals(getId(), that.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(getId());
     }
 }
