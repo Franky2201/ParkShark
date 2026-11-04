@@ -14,7 +14,7 @@ public class ParkingSpotAllocationMapper {
     public ParkingSpotAllocation toEntity(@Valid StartAllocationDto startAllocationDto, Member member, OffsetDateTime startTime) {
         return new ParkingSpotAllocation(member.getId(),
                 startAllocationDto.parkingLotId(),
-                startAllocationDto.licensePlate().getNumber(),
+                startAllocationDto.licencePlate().getNumber(),
                 startTime);
     }
 

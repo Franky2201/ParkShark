@@ -31,7 +31,6 @@ public class ParkingSpotAllocationService {
     private final ParkingLotRepository parkingLotRepository;
     private final ParkingSpotAllocationRepository parkingSpotAllocationRepository;
     private final ParkingSpotAllocationMapper parkingSpotAllocationMapper;
-    private final ParkingLotRepository parkingLotRepository;
 
 
     public ParkingSpotAllocationService(Clock clock, ParkingSpotAllocationRepository parkingSpotAllocationRepository, ParkingSpotAllocationMapper parkingSpotAllocationMapper, ParkingLotRepository parkingLotRepository) {
@@ -39,7 +38,6 @@ public class ParkingSpotAllocationService {
         this.parkingLotRepository = parkingLotRepository;
         this.parkingSpotAllocationRepository = parkingSpotAllocationRepository;
         this.parkingSpotAllocationMapper = parkingSpotAllocationMapper;
-        this.parkingLotRepository = parkingLotRepository;
     }
 
     @Transactional
