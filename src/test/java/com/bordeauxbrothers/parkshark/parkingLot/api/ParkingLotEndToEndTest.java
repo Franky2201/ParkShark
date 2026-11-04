@@ -113,7 +113,10 @@ class ParkingLotEndToEndTest {
                     .body("category", equalTo("UNDERGROUND"))
                     .body("maxCapacity", equalTo(250))
                     .body("contactPersonId", equalTo(MEMBER_ID))
-                    .body("divisionId", equalTo(DIVISION_ID))
+                    .body("division.id", equalTo(DIVISION_ID))
+                    .body("division.name", equalTo("ParkShark Brussels"))
+                    .body("division.id", equalTo(DIVISION_ID))
+                    .body("division.directorId", equalTo(MANAGER_ID))
                     .body("address.street", equalTo(STREET))
                     .body("address.number", equalTo(NUMBER))
                     .body("address.postal_code.zip_code", equalTo(ZIP_CODE))
@@ -407,7 +410,8 @@ class ParkingLotEndToEndTest {
                     .body("address.postal_code.label", equalTo(LABEL))
                     .body("division.id", equalTo(DIVISION_ID))
                     .body("division.name", equalTo("ParkShark Brussels"))
-                    .body("division.originalName", equalTo("Brussels Parking"));
+                    .body("division.originalName", equalTo("Brussels Parking"))
+                    .body("division.directorId", equalTo(MANAGER_ID));
         }
 
         @Test
