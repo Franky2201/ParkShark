@@ -1,4 +1,4 @@
-package com.bordeauxbrothers.parkshark.allocation.api;
+package com.bordeauxbrothers.parkshark.allocation.service;
 
 import com.bordeauxbrothers.parkshark.allocation.api.dto.AllocationDto;
 import com.bordeauxbrothers.parkshark.allocation.api.dto.StartAllocationDto;

@@ -1,6 +1,5 @@
 package com.bordeauxbrothers.parkshark.allocation.service;
 
-import com.bordeauxbrothers.parkshark.allocation.api.ParkingSpotAllocationMapper;
 import com.bordeauxbrothers.parkshark.allocation.api.dto.AllocationDto;
 import com.bordeauxbrothers.parkshark.allocation.api.dto.StartAllocationDto;
 import com.bordeauxbrothers.parkshark.allocation.domain.AllocationStatus;
