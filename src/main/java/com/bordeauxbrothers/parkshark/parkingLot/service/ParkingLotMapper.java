@@ -9,6 +9,8 @@ import com.bordeauxbrothers.parkshark.parkingLot.domain.ParkingLot;
 import com.bordeauxbrothers.parkshark.person.domain.Member;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.PostalCode;
 import com.bordeauxbrothers.parkshark.person.service.mappers.AddressMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -16,6 +18,7 @@ public class ParkingLotMapper {
 
     private final AddressMapper addressMapper;
     private final DivisionMapper divisionMapper;
+    Logger log = LoggerFactory.getLogger(ParkingLotMapper.class);
 
     public ParkingLotMapper(AddressMapper addressMapper, DivisionMapper divisionMapper) {
         this.addressMapper = addressMapper;
@@ -23,11 +26,13 @@ public class ParkingLotMapper {
     }
 
     public ParkingLot toEntity(CreateParkingLotDto dto, PostalCode postalCode, Member contactPerson, Division division) {
+        log.debug("Mapping CreateParkingLotDto to ParkingLot");
         return new ParkingLot(dto.name(), dto.category(), dto.maxCapacity(), dto.pricePerHour(),
                 contactPerson, addressMapper.toEntity(dto.address(), postalCode), division);
     }
 
     public ParkingLotDto toDto(ParkingLot parkingLot) {
+        log.debug("Mapping ParkingLot to ParkingLotDto");
         return new ParkingLotDto(
                 parkingLot.getId(),
                 parkingLot.getName(),
@@ -40,6 +45,7 @@ public class ParkingLotMapper {
     }
 
     public ParkingLotOverviewDto toOverviewDto(ParkingLot parkingLot) {
+        log.debug("Mapping ParkingLot to ParkingLotOverviewDto");
         return new ParkingLotOverviewDto(
                 parkingLot.getId(),
                 parkingLot.getName(),

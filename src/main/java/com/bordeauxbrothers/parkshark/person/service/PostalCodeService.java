@@ -16,10 +16,6 @@ public class PostalCodeService {
         this.postalCodeRepository = postalCodeRepository;
     }
 
-    /**
-     * Postal codes are shared: (zip code, label) is unique in the database,
-     * so an existing one is reused instead of inserting a duplicate.
-     */
     public PostalCode findOrCreate(PostalCodeDTO postalCodeDTO) {
         return postalCodeRepository.findByZipCodeAndLabel(postalCodeDTO.getZipCode(), postalCodeDTO.getLabel())
                 .orElseGet(() -> postalCodeRepository.save(

@@ -5,6 +5,8 @@ import com.bordeauxbrothers.parkshark.allocation.api.dto.StartAllocationDto;
 import com.bordeauxbrothers.parkshark.allocation.domain.ParkingSpotAllocation;
 import com.bordeauxbrothers.parkshark.person.domain.Member;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -12,7 +14,9 @@ import java.time.OffsetDateTime;
 
 @Component
 public class ParkingSpotAllocationMapper {
+    Logger logger = LoggerFactory.getLogger(ParkingSpotAllocationMapper.class);
     public ParkingSpotAllocation toEntity(@Valid StartAllocationDto startAllocationDto, Member member, OffsetDateTime startTime) {
+        logger.debug("Mapping StartAllocationDto to ParkingSpotAllocation");
         return new ParkingSpotAllocation(member.getId(),
                 startAllocationDto.parkingLotId(),
                 startAllocationDto.licensePlate().getNumber(),
@@ -20,6 +24,7 @@ public class ParkingSpotAllocationMapper {
     }
 
     public AllocationDto toDto(ParkingSpotAllocation allocation, OffsetDateTime referenceTime) {
+        logger.debug("Mapping ParkingSpotAllocation to AllocationDto");
         return new AllocationDto(
                 allocation.getId(),
                 allocation.getMemberId(),

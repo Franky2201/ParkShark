@@ -11,6 +11,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +27,7 @@ public class DivisionController {
 
     private final DivisionService divisionService;
     private final SecurityService securityService;
+    Logger log = LoggerFactory.getLogger(DivisionController.class);
 
     public DivisionController(DivisionService divisionService, SecurityService securityService) {
         this.divisionService = divisionService;
@@ -38,6 +41,7 @@ public class DivisionController {
             @Parameter(hidden = true)
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @Valid @RequestBody CreateDivisionDto createDivisionDto) {
+        log.info("Trying to create division {}", createDivisionDto);
         securityService.validateAuthorization(authorization, CREATE_DIVISION);
         return divisionService.createDivision(createDivisionDto);
     }
@@ -66,6 +70,7 @@ public class DivisionController {
             @Parameter(description = "Id of the existing parent division", example = "1")
             @PathVariable int parentDivisionId,
             @Valid @RequestBody CreateDivisionDto createDivisionDto) {
+        log.info("Trying to create subdivision {} under division {}", createDivisionDto, parentDivisionId);
         securityService.validateAuthorization(authorization, CREATE_SUB_DIVISION);
         return divisionService.createSubDivision(parentDivisionId, createDivisionDto);
     }
@@ -75,6 +80,7 @@ public class DivisionController {
     public List<DivisionDto> getAllDivisions(
             @Parameter(hidden = true)
             @RequestHeader(value = "Authorization", required = false) String authorization) {
+        log.info("Trying to get all divisions");
         securityService.validateAuthorization(authorization, SEE_ALL_DIVISIONS);
         return divisionService.getAllDivisions();
     }
@@ -86,6 +92,7 @@ public class DivisionController {
     public DivisionDto getDivision(
             @PathVariable int id,
             @RequestHeader(value = "Authorization", required = false) String authorization) {
+        log.info("Trying to get division with id {}", id);
         securityService.validateAuthorization(authorization, SEE_SPECIFIC_DIVISION);
         return divisionService.getDivision(id);
     }

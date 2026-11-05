@@ -5,6 +5,8 @@ import com.bordeauxbrothers.parkshark.person.domain.persondetails.Address;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.LicensePlate;
 import com.bordeauxbrothers.parkshark.person.service.dtos.AddMemberDTO;
 import com.bordeauxbrothers.parkshark.person.service.dtos.GetAllMembersDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -13,6 +15,7 @@ import java.time.LocalDate;
 @Component
 public class PersonMapper {
     PasswordEncoder passwordEncoder;
+    Logger log = LoggerFactory.getLogger(PersonMapper.class);
 
     public PersonMapper(PasswordEncoder passwordEncoder) {
         this.passwordEncoder = passwordEncoder;
@@ -23,6 +26,7 @@ public class PersonMapper {
             Address address,
             LicensePlate licensePlate
     ) {
+        log.debug("Mapping AddMemberDTO to Member");
         return new Member(
                 dto.getName(),
                 dto.getEmail(),
@@ -37,6 +41,7 @@ public class PersonMapper {
     }
 
     public GetAllMembersDTO fromMemberToGetAllMembersDTO(Member member){
+        log.debug("Mapping Member to GetAllMembersDTO");
         return new GetAllMembersDTO(
                 member.getId(),
                 member.getName(),
@@ -48,6 +53,7 @@ public class PersonMapper {
     }
 
     private String hashedPassword(String password){
+        log.debug("Hashing password");
         return passwordEncoder.encode(password);
     }
 
