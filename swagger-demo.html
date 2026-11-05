@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <title>ParkShark — Demo helper</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 850px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background: #f3f5f9;
+            color: #172033;
+        }
+
+        section {
+            background: white;
+            padding: 24px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+        }
+
+        button {
+            background: #2457d6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 16px;
+            margin: 4px;
+            cursor: pointer;
+        }
+
+        input {
+            padding: 10px;
+            border: 1px solid #bbc4d3;
+            border-radius: 6px;
+        }
+
+        pre {
+            background: #172033;
+            color: #e6edf7;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+        #message {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #172033;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+        }
+
+        #message:empty {
+            display: none;
+        }
+        .id-row {
+            display: grid;
+            grid-template-columns: 150px minmax(100px, 1fr) auto;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .id-row input {
+            width: 100%;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+<h1>🦈 ParkShark — Demo helper</h1>
+<p>Houd deze pagina naast Swagger open.</p>
+
+<section>
+    <h2>Accounts</h2>
+
+    <button onclick="copyText('ned@parkshark-demo.example')">
+        Kopieer Ned — Manager
+    </button>
+
+    <button onclick="copyText('brienne@parkshark-demo.example')">
+        Kopieer Brienne — Member
+    </button>
+
+    <button onclick="copyText('lara.demo01@parkshark.example')">
+        Kopieer Lara — nieuw lid
+    </button>
+
+    <button onclick="copyText('ParkSharkDemo123!')">
+        Kopieer demowachtwoord
+    </button>
+
+    <p>Lara moet eerst geregistreerd zijn zoals in het draaiboek.</p>
+</section>
+
+<section>
+    <h2>IDs voor de demo</h2>
+    <p>Vul hier de IDs uit de Swagger-responses in.</p>
+
+    <div class="id-row">
+        <label for="memberId">Member-ID</label>
+        <input id="memberId" type="number" min="1" step="1">
+        <button onclick="copyId('memberId')">Kopieer</button>
+    </div>
+
+    <div class="id-row">
+        <label for="divisionId">Division-ID</label>
+        <input id="divisionId" type="number" min="1" step="1">
+        <button onclick="copyId('divisionId')">Kopieer</button>
+    </div>
+
+    <div class="id-row">
+        <label for="subdivisionId">Subdivision-ID</label>
+        <input id="subdivisionId" type="number" min="1" step="1">
+        <button onclick="copyId('subdivisionId')">Kopieer</button>
+    </div>
+
+    <div class="id-row">
+        <label for="parkingId">Parking-ID</label>
+        <input id="parkingId" type="number" min="1" step="1"
+               oninput="updateRequest()">
+        <button onclick="copyId('parkingId')">Kopieer</button>
+    </div>
+
+    <div class="id-row">
+        <label for="allocationA">Allocation A</label>
+        <input id="allocationA" type="number" min="1" step="1">
+        <button onclick="copyId('allocationA')">Kopieer</button>
+    </div>
+
+    <div class="id-row">
+        <label for="allocationB">Allocation B</label>
+        <input id="allocationB" type="number" min="1" step="1">
+        <button onclick="copyId('allocationB')">Kopieer</button>
+    </div>
+
+    <div class="id-row">
+        <label for="allocationC">Allocation C</label>
+        <input id="allocationC" type="number" min="1" step="1">
+        <button onclick="copyId('allocationC')">Kopieer</button>
+    </div>
+</section>
+
+<section>
+    <h2>Parkeersessie starten</h2>
+    <p><strong>POST /allocation</strong> — ingelogd als Lara</p>
+
+    <label for="plate">Nummerplaat:</label>
+    <input
+            id="plate"
+            value="DEMO-LARA-01"
+            oninput="updateRequest()"
+    >
+
+    <pre id="allocationJson"></pre>
+
+    <button onclick="copyAllocation()">
+        Kopieer JSON
+    </button>
+
+    <p>
+        Gebruik DEMO-LARA-01 voor haar eigen auto.
+        Probeer DEMO-RENTAL-01 vóór en na de upgrade naar Gold.
+    </p>
+</section>
+
+<section>
+    <h2>Upgraden naar Gold</h2>
+    <p><strong>PUT /person/membership</strong> — ingelogd als Lara</p>
+
+    <pre id="membershipJson">{
+  "membership": "GOLD"
+}</pre>
+
+    <button onclick="copyText(
+            document.getElementById('membershipJson').textContent
+        )">
+        Kopieer JSON
+    </button>
+</section>
+
+<div id="message" role="status"></div>
+
+<script>
+    let messageTimer;
+
+    function showMessage(text) {
+        const message = document.getElementById("message");
+        message.textContent = text;
+
+        clearTimeout(messageTimer);
+        messageTimer = setTimeout(() => {
+            message.textContent = "";
+        }, 3000);
+    }
+
+    function getAllocation() {
+        const value = document.getElementById("parkingId").value;
+
+        return {
+            licensePlate: {
+                number: document.getElementById("plate").value.trim(),
+                country: "Belgium"
+            },
+            parkingLotId: value ? Number(value) : null
+        };
+    }
+
+    function updateRequest() {
+        document.getElementById("allocationJson").textContent =
+            JSON.stringify(getAllocation(), null, 2);
+    }
+
+    function copyAllocation() {
+        const request = getAllocation();
+
+        if (!Number.isSafeInteger(request.parkingLotId)
+            || request.parkingLotId <= 0) {
+            showMessage("Vul eerst een geldig parking-ID in.");
+            return;
+        }
+
+        if (!request.licensePlate.number) {
+            showMessage("Vul eerst een nummerplaat in.");
+            return;
+        }
+
+        copyText(JSON.stringify(request, null, 2));
+    }
+
+    async function copyText(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+            showMessage("Gekopieerd ✓");
+        } catch {
+            // Fallback voor browsers die het klembord
+            // bij lokale bestanden niet rechtstreeks toestaan.
+            const field = document.createElement("textarea");
+            field.value = text;
+            field.style.position = "fixed";
+            field.style.opacity = "0";
+            document.body.appendChild(field);
+            field.select();
+
+            const copied = document.execCommand("copy");
+            field.remove();
+
+            showMessage(copied
+                ? "Gekopieerd ✓"
+                : "Kopiëren geblokkeerd door de browser.");
+        }
+    }
+
+    updateRequest();
+    function copyId(fieldId) {
+        const field = document.getElementById(fieldId);
+        const value = field.value.trim();
+        const id = Number(value);
+
+        if (!value || !Number.isSafeInteger(id) || id <= 0) {
+            showMessage("Vul eerst een geldig ID in.");
+            field.focus();
+            return;
+        }
+
+        copyText(String(id));
+    }
+</script>
+</body>
+</html>
