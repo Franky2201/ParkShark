@@ -92,7 +92,6 @@ public class PersonService {
         if (personRepository.findByEmail(email).isPresent()) {
             throw new EmailAlreadyInUseException("Email already used");
         }
-        ;
     }
 
     @Transactional(readOnly = true)
