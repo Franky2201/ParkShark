@@ -3,14 +3,11 @@ package com.bordeauxbrothers.parkshark.allocation.api;
 import io.restassured.http.ContentType;
 import io.restassured.response.ValidatableResponse;
 import io.restassured.specification.RequestSpecification;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -65,7 +62,7 @@ class ParkingSpotAllocationEndToEndTest {
     void setUp() {
         data = new AllocationTestData(jdbc, passwordEncoder);
         data.reset();
-    }
+    }                                                                
 
     @AfterEach
     void tearDown() {
@@ -688,6 +685,112 @@ class ParkingSpotAllocationEndToEndTest {
             }
         }
 
+        @Nested
+        @DisplayName("PSA6 - Duration of each allocation")
+        class AllocationDuration {
+
+            @Test
+            @DisplayName("Should include the duration of every allocation, in overview order")
+            void givenAllocationsWithAllStatuses_whenGettingOverview_thenEveryAllocationHasItsDuration() {
+                // Given: allocations created in @BeforeEach, clock fixed at NOW
+
+                // When & Then
+                overview(Map.of())
+                        .statusCode(200)
+                        .body("id", contains(OLDEST, STOPPED, INVOICED, NEWEST))
+                        .body("duration", contains(
+                                "04:00:00",   // active, started 4h ago → until NOW
+                                "00:30:00",   // stopped, start → end time
+                                "00:30:00",   // invoiced, start → end time
+                                "01:00:00"    // active, started 1h ago → until NOW
+                        ));
+            }
+
+            @Test
+            @DisplayName("Should calculate the duration of an active allocation until the current time")
+            void givenActiveAllocations_whenGettingOverview_thenDurationRunsUntilNow() {
+                // Given: OLDEST started 4h ago, NEWEST 1h ago, both still active
+
+                // When & Then
+                overview(Map.of("status", "ACTIVE"))
+                        .statusCode(200)
+                        .body("id", contains(OLDEST, NEWEST))
+                        .body("duration", contains("04:00:00", "01:00:00"));
+            }
+
+            @Test
+            @DisplayName("Should calculate the duration of a stopped allocation until its end time, not the current time")
+            void givenStoppedAllocation_whenGettingOverview_thenDurationRunsUntilEndTime() {
+                // Given: STOPPED started 3h ago and ended 30 minutes later
+                // (if the end time were ignored, the duration would be 03:00:00)
+
+                // When & Then
+                overview(Map.of("status", "PASSIVE"))
+                        .statusCode(200)
+                        .body("id", contains(STOPPED))
+                        .body("duration", contains("00:30:00"));
+            }
+
+            @Test
+            @DisplayName("Should include minutes and seconds in the duration")
+            void givenAllocationStartedOneHourTwoMinutesThreeSecondsAgo_whenGettingOverview_thenDurationIs010203() {
+                // Given
+                setStartTime(NEWEST, NOW.minusSeconds(3600 + 2 * 60 + 3));
+
+                // When & Then
+                overview(Map.of("status", "ACTIVE", "desc", true))
+                        .statusCode(200)
+                        .body("[0].id", equalTo(NEWEST))
+                        .body("[0].duration", equalTo("01:02:03"));
+            }
+
+            @Test
+            @DisplayName("Should not wrap the hours around when an allocation lasts longer than 24 hours")
+            void givenAllocationLongerThan24Hours_whenGettingOverview_thenHoursDoNotWrapAround() {
+                // Given: catches toHoursPart() instead of toHours() (25h would show as 01:10:05)
+                setStartTime(OLDEST, NOW.minusSeconds(25 * 3600 + 10 * 60 + 5));
+
+                // When & Then
+                overview(Map.of("status", "ACTIVE"))
+                        .statusCode(200)
+                        .body("[0].id", equalTo(OLDEST))
+                        .body("[0].duration", equalTo("25:10:05"));
+            }
+
+            @Test
+            @DisplayName("Should format every duration as hh:mm:ss")
+            void givenAllocations_whenGettingOverview_thenEveryDurationHasHhMmSsFormat() {
+                // Given: allocations created in @BeforeEach
+
+                // When & Then
+                overview(Map.of())
+                        .statusCode(200)
+                        .body("duration", everyItem(matchesPattern("\\d{2,}:\\d{2}:\\d{2}")));
+            }
+
+            @Test
+            @DisplayName("Should not change the database when calculating durations")
+            void givenActiveAllocations_whenCalculatingDurations_thenDatabaseIsUnchanged() {
+                // Given
+                List<Map<String, Object>> before = data.rows();
+
+                // When
+                overview(Map.of()).statusCode(200);
+
+                // Then: calculating a duration must not fill in the end time of an active allocation
+                assertThat(data.rows()).isEqualTo(before);
+            }
+
+            private void setStartTime(int allocationId, java.time.Instant startTime) {
+                jdbc.update("""
+                UPDATE parkshark.parking_spot_allocation
+                SET start_time = ?
+                WHERE id = ?
+                """,
+                        OffsetDateTime.ofInstant(startTime, ZoneOffset.UTC),
+                        allocationId);
+            }
+        }
     }
 
     @Nested
