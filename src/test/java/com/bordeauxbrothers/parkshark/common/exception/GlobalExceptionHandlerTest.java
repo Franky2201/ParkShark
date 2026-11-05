@@ -229,7 +229,7 @@ public class GlobalExceptionHandlerTest {
         assertThat(events).hasSize(1);
         ILoggingEvent event = events.getFirst();
         assertThat(event.getLevel()).isEqualTo(Level.WARN);
-        assertThat(event.getFormattedMessage()).isEqualTo("404 on GET /test/not-found: Parking lot 42 not found");
+        assertThat(event.getFormattedMessage()).isEqualTo("404 on GET /test/not-found: Parking lot 42 not found (ResourceNotFoundException)");
         assertThat(event.getThrowableProxy()).isNull();
     }
 

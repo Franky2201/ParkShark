@@ -1,6 +1,6 @@
 package com.bordeauxbrothers.parkshark.allocation.api.dto;
 
-import com.bordeauxbrothers.parkshark.person.domain.persondetails.LicensePlate;
+import com.bordeauxbrothers.parkshark.person.api.dtos.LicensePlateDTO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -17,7 +17,7 @@ public record StartAllocationDto(
         )
         @NotNull(message = "An allocation needs a licence plate")
         @Valid
-        LicensePlate licensePlate,
+        LicensePlateDTO licensePlate,
 
         @Schema(
                 description = "ID of an existing parking lot with available capacity.",

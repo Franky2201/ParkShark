@@ -1,9 +1,9 @@
 package com.bordeauxbrothers.parkshark.person.service.mappers;
 
+import com.bordeauxbrothers.parkshark.person.api.dtos.AddressDTO;
+import com.bordeauxbrothers.parkshark.person.api.dtos.PostalCodeDTO;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Address;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.PostalCode;
-import com.bordeauxbrothers.parkshark.person.service.dtos.AddressDTO;
-import com.bordeauxbrothers.parkshark.person.service.dtos.PostalCodeDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -14,7 +14,7 @@ public class AddressMapper {
 
     public Address toEntity(AddressDTO addressDTO, PostalCode postalCode) {
         logger.debug("Mapping AddressDTO to Address");
-        return new Address(addressDTO.getStreet(), addressDTO.getNumber(), postalCode);
+        return new Address(addressDTO.street(), addressDTO.number(), postalCode);
     }
 
     public AddressDTO toDto(Address address) {

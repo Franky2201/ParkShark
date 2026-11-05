@@ -19,7 +19,7 @@ public class ParkingSpotAllocationMapper {
         logger.debug("Mapping StartAllocationDto to ParkingSpotAllocation");
         return new ParkingSpotAllocation(member.getId(),
                 startAllocationDto.parkingLotId(),
-                startAllocationDto.licensePlate().getNumber(),
+                startAllocationDto.licensePlate().number(),
                 startTime);
     }
 

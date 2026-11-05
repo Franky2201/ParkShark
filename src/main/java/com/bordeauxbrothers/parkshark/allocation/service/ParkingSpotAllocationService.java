@@ -55,7 +55,7 @@ public class ParkingSpotAllocationService {
         }
         log.debug("Checking if member has the right licence plate");
         if (member.getMembership() != Membership.GOLD &&
-                !(member.getLicensePlate().getNumber().equals(startAllocationDto.licensePlate().getNumber()))) {
+                !(member.getLicensePlate().getNumber().equals(startAllocationDto.licensePlate().number()))) {
             throw new BadRequestException("Licence plate has to match member if membership is not Gold");
         }
 

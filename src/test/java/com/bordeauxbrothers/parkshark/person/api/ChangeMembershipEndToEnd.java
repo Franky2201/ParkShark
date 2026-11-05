@@ -1,13 +1,12 @@
 package com.bordeauxbrothers.parkshark.person.api;
 
-import com.bordeauxbrothers.parkshark.person.domain.Manager;
 import com.bordeauxbrothers.parkshark.person.domain.Member;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.*;
 import com.bordeauxbrothers.parkshark.person.repositories.AddressRepository;
 import com.bordeauxbrothers.parkshark.person.repositories.LicensePlateRepository;
 import com.bordeauxbrothers.parkshark.person.repositories.PersonRepository;
 import com.bordeauxbrothers.parkshark.person.repositories.PostalCodeRepository;
-import com.bordeauxbrothers.parkshark.person.service.dtos.MembershipDTO;
+import com.bordeauxbrothers.parkshark.person.api.dtos.MembershipDTO;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +19,6 @@ import java.time.LocalDate;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
-import static org.springframework.web.servlet.function.RequestPredicates.contentType;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -140,7 +138,7 @@ public class ChangeMembershipEndToEnd {
                 .put("/person/membership")
                 .then()
                 .statusCode(400)
-                .body("detail", equalTo(String.format("Membership %s is not valid", dto.getMembership().trim().toUpperCase())
+                .body("detail", equalTo(String.format("Membership %s is not valid", dto.membership().trim().toUpperCase())
                 )).contentType(ContentType.JSON);
     }
 }

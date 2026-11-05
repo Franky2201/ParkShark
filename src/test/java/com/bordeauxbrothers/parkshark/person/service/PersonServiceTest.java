@@ -12,11 +12,11 @@ import com.bordeauxbrothers.parkshark.person.repositories.AddressRepository;
 import com.bordeauxbrothers.parkshark.person.repositories.LicensePlateRepository;
 import com.bordeauxbrothers.parkshark.person.repositories.PersonRepository;
 import com.bordeauxbrothers.parkshark.person.repositories.PostalCodeRepository;
-import com.bordeauxbrothers.parkshark.person.service.dtos.AddMemberDTO;
-import com.bordeauxbrothers.parkshark.person.service.dtos.AddressDTO;
-import com.bordeauxbrothers.parkshark.person.service.dtos.GetAllMembersDTO;
-import com.bordeauxbrothers.parkshark.person.service.dtos.LicensePlateDTO;
-import com.bordeauxbrothers.parkshark.person.service.dtos.PostalCodeDTO;
+import com.bordeauxbrothers.parkshark.person.api.dtos.AddMemberDTO;
+import com.bordeauxbrothers.parkshark.person.api.dtos.AddressDTO;
+import com.bordeauxbrothers.parkshark.person.api.dtos.GetAllMembersDTO;
+import com.bordeauxbrothers.parkshark.person.api.dtos.LicensePlateDTO;
+import com.bordeauxbrothers.parkshark.person.api.dtos.PostalCodeDTO;
 import com.bordeauxbrothers.parkshark.person.service.mappers.PersonMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -66,7 +66,7 @@ class PersonServiceTest {
         LicensePlate licensePlate = new LicensePlate("1-ABC-123", "Belgium");
         Member member = mock(Member.class);
 
-        when(personRepository.findByEmail(addMemberDTO.getEmail()))
+        when(personRepository.findByEmail(addMemberDTO.email()))
                 .thenReturn(Optional.empty());
         when(postalCodeRepository.save(any(PostalCode.class)))
                 .thenReturn(postalCode);
@@ -101,7 +101,7 @@ class PersonServiceTest {
 
     @Test
     void addMember_whenEmailAlreadyExists_throwsAndSavesNothing() {
-        when(personRepository.findByEmail(addMemberDTO.getEmail()))
+        when(personRepository.findByEmail(addMemberDTO.email()))
                 .thenReturn(Optional.of(mock(Person.class)));
 
         assertThatThrownBy(() -> personService.addMember(addMemberDTO))
