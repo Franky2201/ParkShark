@@ -4,7 +4,6 @@ import com.bordeauxbrothers.parkshark.common.security.exception.ForbiddenExcepti
 import com.bordeauxbrothers.parkshark.common.security.exception.UnauthorizedException;
 import com.bordeauxbrothers.parkshark.person.exception.EmailAlreadyInUseException;
 import com.bordeauxbrothers.parkshark.person.exception.InvalidMembershipException;
-import com.bordeauxbrothers.parkshark.person.exception.NotExistingUserException;
 import com.bordeauxbrothers.parkshark.person.exception.UnchangedMembershipException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.jspecify.annotations.NonNull;
@@ -47,7 +46,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * @return a {@code ProblemDetail} with the given status and the exception message as detail
      */
     private ProblemDetail problem(HttpStatus status, Exception ex, HttpServletRequest req) {
-        log.warn("{} on {} {}: {}", status.value(), req.getMethod(), req.getRequestURI(), ex.getMessage());
+        log.warn("{} on {} {}: {} ({})",
+                status.value(), req.getMethod(), req.getRequestURI(), ex.getMessage(), ex.getClass().getSimpleName());
         return ProblemDetail.forStatusAndDetail(status, ex.getMessage());
     }
 
@@ -116,9 +116,46 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
+     * Handles registering a member with an email address that is already used.
+     *
+     * @param ex  the exception that was thrown
+     * @param req the current request
+     * @return a 409 Conflict {@code ProblemDetail}
+     */
+    @ExceptionHandler(EmailAlreadyInUseException.class)
+    public ProblemDetail handleEmailAlreadyInUse(EmailAlreadyInUseException ex, HttpServletRequest req) {
+        return problem(HttpStatus.CONFLICT, ex, req);
+    }
+
+    /**
+     * Handles changing a membership to the level the member already has.
+     *
+     * @param ex  the exception that was thrown
+     * @param req the current request
+     * @return a 409 Conflict {@code ProblemDetail}
+     */
+    @ExceptionHandler(UnchangedMembershipException.class)
+    public ProblemDetail handleUnchangedMembership(UnchangedMembershipException ex, HttpServletRequest req) {
+        return problem(HttpStatus.CONFLICT, ex, req);
+    }
+
+    /**
+     * Handles an unknown membership level.
+     *
+     * @param ex  the exception that was thrown
+     * @param req the current request
+     * @return a 400 Bad Request {@code ProblemDetail}
+     */
+    @ExceptionHandler(InvalidMembershipException.class)
+    public ProblemDetail handleInvalidMembership(InvalidMembershipException ex, HttpServletRequest req) {
+        return problem(HttpStatus.BAD_REQUEST, ex, req);
+    }
+
+    /**
      * Fallback for any {@link ParkSharkException} subclass that has no dedicated handler.
      * <p>More specific handlers always take precedence. If this one fires, a new exception
-     * type was probably added without a mapping, so consider adding a dedicated handler.</p>
+     * type was probably added without a mapping; the exception type is included in the log
+     * line, so consider adding a dedicated handler for it.</p>
      *
      * @param ex  the exception that was thrown
      * @param req the current request
@@ -126,26 +163,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      */
     @ExceptionHandler(ParkSharkException.class)
     public ProblemDetail handleParkShark(ParkSharkException ex, HttpServletRequest req) {
-        return problem(HttpStatus.BAD_REQUEST, ex, req);
-    }
-
-    @ExceptionHandler(EmailAlreadyInUseException.class)
-    public ProblemDetail handleEmailAlreadyInUse(EmailAlreadyInUseException ex, HttpServletRequest req) {
-        return problem(HttpStatus.CONFLICT, ex, req);
-    }
-
-    @ExceptionHandler(NotExistingUserException.class)
-    public ProblemDetail handleNotExistingUser(NotExistingUserException ex, HttpServletRequest req) {
-        return problem(HttpStatus.NOT_FOUND, ex, req);
-    }
-
-    @ExceptionHandler(UnchangedMembershipException.class)
-    public ProblemDetail handleUnchangedMembership(UnchangedMembershipException ex, HttpServletRequest req) {
-        return problem(HttpStatus.CONFLICT , ex, req);
-    }
-
-    @ExceptionHandler(InvalidMembershipException.class)
-    public ProblemDetail handleInvalidMembership(InvalidMembershipException ex, HttpServletRequest req) {
         return problem(HttpStatus.BAD_REQUEST, ex, req);
     }
 
@@ -193,8 +210,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     /**
      * Logs every standard Spring MVC exception handled by {@link ResponseEntityExceptionHandler}
-     * (malformed JSON, unsupported HTTP method, missing parameters, type mismatches, ...)
-     * at WARN level, then delegates to the default implementation.
+     * (malformed JSON, unsupported HTTP method, missing parameters, type mismatches, ...),
+     * then delegates to the default implementation.
+     * <p>Client errors (4xx) are logged at WARN level without a stack trace;
+     * server errors (5xx) at ERROR level with the full stack trace.</p>
      *
      * @param ex         the exception that was thrown
      * @param body       the response body, or {@code null}
@@ -205,7 +224,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      */
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(Exception ex, @Nullable Object body, @NonNull HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
-        log.warn("{} on {}: {}", statusCode.value(), request.getDescription(false), ex.getMessage());
+        if (statusCode.is5xxServerError()) {
+            log.error("{} on {}", statusCode.value(), request.getDescription(false), ex);
+        } else {
+            log.warn("{} on {}: {}", statusCode.value(), request.getDescription(false), ex.getMessage());
+        }
         return super.handleExceptionInternal(ex, body, headers, statusCode, request);
     }
 }

@@ -1,21 +1,17 @@
 package com.bordeauxbrothers.parkshark.person.api.dtos;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 
-public class LicensePlateDTO {
-    @NotBlank
-    private String number;
-    @NotBlank
-    private String country;
+@Schema(description = "A licence plate: number and issuing country.")
+public record LicensePlateDTO(
 
-    public LicensePlateDTO(String number, String country) {
-        this.number = number;
-        this.country = country;
-    }
-    public String getNumber() {
-        return number;
-    }
-    public String getCountry() {
-        return country;
-    }
+        @Schema(description = "Licence plate number.", example = "1-ABC-123")
+        @NotBlank(message = "License plate number should not be blank")
+        String number,
+
+        @Schema(description = "Country that issued the licence plate.", example = "BE")
+        @NotBlank(message = "License plate country should not be blank")
+        String country
+) {
 }

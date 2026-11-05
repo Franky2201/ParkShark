@@ -1,5 +1,6 @@
 package com.bordeauxbrothers.parkshark.person.service;
 
+import com.bordeauxbrothers.parkshark.person.api.dtos.MemberDTO;
 import com.bordeauxbrothers.parkshark.person.domain.Person;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Membership;
 import com.bordeauxbrothers.parkshark.person.exception.EmailAlreadyInUseException;
@@ -17,7 +18,7 @@ import com.bordeauxbrothers.parkshark.person.api.dtos.AddMemberDTO;
 import com.bordeauxbrothers.parkshark.person.api.dtos.GetAllMembersDTO;
 import com.bordeauxbrothers.parkshark.person.api.dtos.MembershipDTO;
 import com.bordeauxbrothers.parkshark.person.service.mappers.PersonMapper;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -26,8 +27,10 @@ import java.util.List;
 import java.util.Locale;
 
 @Service
+@Transactional
 public class PersonService {
     private final Logger log = LoggerFactory.getLogger(PersonService.class);
+
     private final PersonRepository personRepository;
     private final PostalCodeRepository postalCodeRepository;
     private final AddressRepository addressRepository;
@@ -48,7 +51,6 @@ public class PersonService {
         this.personMapper = personMapper;
     }
 
-    @Transactional
     public void addMember(AddMemberDTO dto) {
         isEmailAlreadyUsed(dto.getEmail());
         var postalCodeDTO = dto.getAddressDTO().getPostalCodeDTO();
@@ -85,13 +87,15 @@ public class PersonService {
         personRepository.save(member);
     }
 
-    public void isEmailAlreadyUsed(String email){
+    public void isEmailAlreadyUsed(String email) {
         log.info("Checking if email {} is already used", email);
-        if (personRepository.findByEmail(email).isPresent()){
+        if (personRepository.findByEmail(email).isPresent()) {
             throw new EmailAlreadyInUseException("Email already used");
-        };
+        }
+        ;
     }
 
+    @Transactional(readOnly = true)
     public List<GetAllMembersDTO> getAllMembers() {
         return personRepository.getAllMembers().stream()
                 .map(personMapper::fromMemberToGetAllMembersDTO)
@@ -114,9 +118,11 @@ public class PersonService {
         personRepository.save(member);
     }
 
-    public Member getMember(int id) {
+    @Transactional(readOnly = true)
+    public MemberDTO getMember(int id) {
         log.info("Getting member with id {}", id);
         return personRepository.findMemberById(id)
-                .orElseThrow(() -> new NotExistingUserException("Member with id " + id + " not found"));
+                .map(personMapper::toMemberDTO)
+                .orElseThrow(() -> new NotExistingUserException(id));
     }
 }

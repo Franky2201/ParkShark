@@ -16,8 +16,8 @@ public class AtLeastOnePhoneValidator
             return true;
         }
 
-        return isNotBlank(dto.getPhoneNumber())
-                || isNotBlank(dto.getMobileNumber());
+        return isNotBlank(dto.phoneNumber())
+                || isNotBlank(dto.mobileNumber());
     }
 
     private boolean isNotBlank(String value) {

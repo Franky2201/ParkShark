@@ -57,7 +57,7 @@ public class ParkingLotService {
         Division division = divisionRepository.findById(createParkingLotDto.divisionId())
                 .orElseThrow(() -> new DivisionNotFoundException(createParkingLotDto.divisionId()));
         Member contactPerson = findContactPerson(createParkingLotDto.contactPersonId());
-        PostalCode postalCode = postalCodeService.findOrCreate(createParkingLotDto.address().getPostalCodeDTO());
+        PostalCode postalCode = postalCodeService.findOrCreate(createParkingLotDto.address().postalCodeDTO());
 
         ParkingLot saved = parkingLotRepository.save(
                 parkingLotMapper.toEntity(createParkingLotDto, postalCode, contactPerson, division));

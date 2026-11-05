@@ -1,13 +1,15 @@
 package com.bordeauxbrothers.parkshark.person.api.dtos;
 
-public class MembershipDTO {
-    private final String membership;
+import io.swagger.v3.oas.annotations.media.Schema;
 
-    public MembershipDTO(String membership) {
-        this.membership = membership;
-    }
+@Schema(description = "The membership level to switch to.")
+public record MembershipDTO(
 
-    public String getMembership() {
-        return membership;
-    }
+        @Schema(
+                description = "New membership level. Must differ from the current level.",
+                example = "GOLD",
+                allowableValues = {"BRONZE", "SILVER", "GOLD"}
+        )
+        String membership
+) {
 }

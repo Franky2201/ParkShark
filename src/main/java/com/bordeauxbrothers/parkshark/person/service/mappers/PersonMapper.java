@@ -1,10 +1,9 @@
 package com.bordeauxbrothers.parkshark.person.service.mappers;
 
+import com.bordeauxbrothers.parkshark.person.api.dtos.*;
 import com.bordeauxbrothers.parkshark.person.domain.Member;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Address;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.LicensePlate;
-import com.bordeauxbrothers.parkshark.person.api.dtos.AddMemberDTO;
-import com.bordeauxbrothers.parkshark.person.api.dtos.GetAllMembersDTO;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +15,27 @@ public class PersonMapper {
 
     public PersonMapper(PasswordEncoder passwordEncoder) {
         this.passwordEncoder = passwordEncoder;
+    }
+
+    public MemberDTO toMemberDTO(Member member) {
+        return new MemberDTO(
+                member.getId(),
+                member.getName(),
+                new AddressDTO(
+                        member.getAddress().getStreet(),
+                        member.getAddress().getNumber(),
+                        new PostalCodeDTO(
+                                member.getAddress().getPostalCode().getZipCode(),
+                                member.getAddress().getPostalCode().getLabel())),
+                member.getPhoneNumber(),
+                member.getMobileNumber(),
+                member.getEmail(),
+                new LicensePlateDTO(
+                        member.getLicensePlate().getNumber(),
+                        member.getLicensePlate().getCountry()),
+                member.getMembership(),
+                member.getRegistrationDate()
+        );
     }
 
     public Member fromAddMemberDTOtoMember(
@@ -36,7 +56,7 @@ public class PersonMapper {
         );
     }
 
-    public GetAllMembersDTO fromMemberToGetAllMembersDTO(Member member){
+    public GetAllMembersDTO fromMemberToGetAllMembersDTO(Member member) {
         return new GetAllMembersDTO(
                 member.getId(),
                 member.getName(),
@@ -47,11 +67,11 @@ public class PersonMapper {
         );
     }
 
-    private String hashedPassword(String password){
+    private String hashedPassword(String password) {
         return passwordEncoder.encode(password);
     }
 
-    private String getOnePhoneNumber(String phoneNumber, String mobileNumber){
+    private String getOnePhoneNumber(String phoneNumber, String mobileNumber) {
         return phoneNumber != null ? phoneNumber : mobileNumber;
     }
 }
