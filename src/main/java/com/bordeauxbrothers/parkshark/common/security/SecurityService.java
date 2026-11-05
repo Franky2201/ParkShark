@@ -25,7 +25,7 @@ public class SecurityService {
     }
 
     public Person validateAuthorization(String authorization, Feature feature){
-        log.info("Validating authorization");
+        log.debug("Validating authorization");
         if(authorization == null || authorization.isBlank() || !authorization.startsWith("Basic ")){
             throw new UnauthorizedException();
         }
@@ -49,7 +49,7 @@ public class SecurityService {
         String email = credentials[0];
         String password = credentials[1];
 
-        log.info("Validating credentials for email {}", email);
+        log.debug("Validating credentials");
         Person person = personRepository.findByEmail(email)
                 .orElseThrow(UnauthorizedException::new);
 

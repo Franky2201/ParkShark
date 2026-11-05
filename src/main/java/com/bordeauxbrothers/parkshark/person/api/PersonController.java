@@ -31,7 +31,7 @@ public class PersonController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public void addMember(@Valid @RequestBody AddMemberDTO addMemberDTO){
-        log.info("Adding member {}", addMemberDTO);
+        log.info("Adding a new member.");
         personService.addMember(addMemberDTO);
     }
 

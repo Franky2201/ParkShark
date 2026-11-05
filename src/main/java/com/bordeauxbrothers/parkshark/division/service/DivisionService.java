@@ -27,14 +27,14 @@ public class DivisionService {
     }
 
     public DivisionDto createDivision(CreateDivisionDto createDivisionDto) {
-        log.info("Creating division {}", createDivisionDto);
+        log.debug("Creating division");
         return divisionMapper.toDto(
                 divisionRepository.save(
                         divisionMapper.toEntity(createDivisionDto)));
     }
 
     public DivisionDto createSubDivision(int parentDivisionId, @Valid CreateDivisionDto createDivisionDto) {
-        log.info("Creating subdivision {} under division {}", createDivisionDto, parentDivisionId);
+        log.debug("Creating subdivision under division {}", parentDivisionId);
         // Look up the parent (or fail with 404)
         Division parent = divisionRepository.findById(parentDivisionId)
                 .orElseThrow(() -> new DivisionNotFoundException(parentDivisionId));
@@ -47,14 +47,14 @@ public class DivisionService {
 
     @Transactional(readOnly = true)
     public List<DivisionDto> getAllDivisions() {
-        log.info("Getting all divisions");
+        log.debug("Getting all divisions");
         return divisionMapper.toDto(
                 divisionRepository.findAllBy());
     }
 
     @Transactional(readOnly = true)
     public DivisionDto getDivision(int id) {
-        log.info("Getting division {}", id);
+        log.debug("Getting division {}", id);
         return divisionRepository.findById(id)
                 .map(divisionMapper::toDto)
                 .orElseThrow(() -> new DivisionNotFoundException(id));

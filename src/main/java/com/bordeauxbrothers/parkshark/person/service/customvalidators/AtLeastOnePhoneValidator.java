@@ -19,7 +19,7 @@ public class AtLeastOnePhoneValidator
             return true;
         }
 
-        logger.info("Checking if at least one phone number is present.");
+        logger.debug("Checking if at least one phone number is present.");
 
 
         return isNotBlank(dto.getPhoneNumber())
