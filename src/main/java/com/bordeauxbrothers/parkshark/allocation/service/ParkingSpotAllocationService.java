@@ -1,6 +1,5 @@
 package com.bordeauxbrothers.parkshark.allocation.service;
 
-import com.bordeauxbrothers.parkshark.allocation.api.ParkingSpotAllocationMapper;
 import com.bordeauxbrothers.parkshark.allocation.api.dto.AllocationDto;
 import com.bordeauxbrothers.parkshark.allocation.api.dto.StartAllocationDto;
 import com.bordeauxbrothers.parkshark.allocation.domain.AllocationStatus;
@@ -70,9 +69,11 @@ public class ParkingSpotAllocationService {
         }
 
         OffsetDateTime startTime = OffsetDateTime.now(clock);
+        OffsetDateTime referenceTime = OffsetDateTime.now(clock);
         return parkingSpotAllocationMapper.toDto(
                 parkingSpotAllocationRepository.save(
-                        parkingSpotAllocationMapper.toEntity(startAllocationDto, member, startTime)));
+                        parkingSpotAllocationMapper.toEntity(startAllocationDto, member, startTime)),
+                referenceTime);
     }
 
     @Transactional
@@ -90,12 +91,13 @@ public class ParkingSpotAllocationService {
         if (allocation.getStatus() != AllocationStatus.ACTIVE) {
             throw new ConflictException("Allocation has to be active to be stopped");
         }
+        
         OffsetDateTime endTime = OffsetDateTime.now(clock);
         allocation.stop(endTime);
-        return parkingSpotAllocationMapper.toDto(parkingSpotAllocationRepository.save(allocation));
+        return parkingSpotAllocationMapper.toDto(parkingSpotAllocationRepository.save(allocation), endTime);
     }
 
-
+    @Transactional(readOnly = true)
     public List<AllocationDto> getAllAllocatingParkingSpotsFiltered(Integer limit, AllocationStatus status, boolean desc) {
         if (limit != null && limit <= 0) {
             throw new BadRequestException(
@@ -118,18 +120,21 @@ public class ParkingSpotAllocationService {
                 ? parkingSpotAllocationRepository.findAllBy(pageable)
                 : parkingSpotAllocationRepository.findByStatus(status, pageable);
 
+        OffsetDateTime now = OffsetDateTime.now(clock);
         return allocations.stream()
-                .map(parkingSpotAllocationMapper::toDto)
+                .map(allocation -> parkingSpotAllocationMapper.toDto(allocation, now))
                 .toList();
-
     }
 
+    @Transactional(readOnly = true)
     public List<AllocationDto> getAllAllocatingParkingSpotsForMemberFiltered(int id, AllocationStatus status) {
         List<ParkingSpotAllocation> allocations = (status == null)
                 ? parkingSpotAllocationRepository.findAllByMemberId(id)
                 : parkingSpotAllocationRepository.findAllByMemberIdAndStatus(id, status);
+
+        OffsetDateTime now = OffsetDateTime.now(clock);
         return allocations.stream()
-                .map(parkingSpotAllocationMapper::toDto)
+                .map(allocation -> parkingSpotAllocationMapper.toDto(allocation, now))
                 .toList();
     }
 
@@ -137,8 +142,10 @@ public class ParkingSpotAllocationService {
         List<ParkingSpotAllocation> allocations = (status == null)
                 ? parkingSpotAllocationRepository.findByParkingLotId(id)
                 : parkingSpotAllocationRepository.findAllByParkingLotIdAndStatus(id, status);
+
+        OffsetDateTime now = OffsetDateTime.now(clock);
         return allocations.stream()
-                .map(parkingSpotAllocationMapper::toDto)
+                .map(allocation -> parkingSpotAllocationMapper.toDto(allocation, now))
                 .toList();
     }
 }

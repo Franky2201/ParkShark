@@ -1,4 +1,4 @@
-package com.bordeauxbrothers.parkshark.allocation.api;
+package com.bordeauxbrothers.parkshark.allocation.service;
 
 import com.bordeauxbrothers.parkshark.allocation.api.dto.AllocationDto;
 import com.bordeauxbrothers.parkshark.allocation.api.dto.StartAllocationDto;
@@ -7,6 +7,7 @@ import com.bordeauxbrothers.parkshark.person.domain.Member;
 import jakarta.validation.Valid;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
 
 @Component
@@ -18,7 +19,7 @@ public class ParkingSpotAllocationMapper {
                 startTime);
     }
 
-    public AllocationDto toDto(ParkingSpotAllocation allocation) {
+    public AllocationDto toDto(ParkingSpotAllocation allocation, OffsetDateTime referenceTime) {
         return new AllocationDto(
                 allocation.getId(),
                 allocation.getMemberId(),
@@ -26,7 +27,13 @@ public class ParkingSpotAllocationMapper {
                 allocation.getLicensePlateNumber(),
                 allocation.getStartTime(),
                 allocation.getEndTime(),
+                formatDuration(allocation.getDuration(referenceTime)),
                 allocation.getStatus()
         );
+    }
+
+    private String formatDuration(Duration duration) {
+        return String.format("%02d:%02d:%02d",
+                duration.toHours(), duration.toMinutesPart(), duration.toSecondsPart());
     }
 }
