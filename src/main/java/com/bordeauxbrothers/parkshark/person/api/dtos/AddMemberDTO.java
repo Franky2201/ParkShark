@@ -1,4 +1,4 @@
-package com.bordeauxbrothers.parkshark.person.service.dtos;
+package com.bordeauxbrothers.parkshark.person.api.dtos;
 
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.*;
 import com.bordeauxbrothers.parkshark.person.service.customvalidators.AtLeastOnePhone;

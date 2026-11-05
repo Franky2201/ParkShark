@@ -1,6 +1,6 @@
 package com.bordeauxbrothers.parkshark.allocation.api.dto;
 
-import com.bordeauxbrothers.parkshark.person.service.dtos.LicensePlateDTO;
+import com.bordeauxbrothers.parkshark.person.api.dtos.LicensePlateDTO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;

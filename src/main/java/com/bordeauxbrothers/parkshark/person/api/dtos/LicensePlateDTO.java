@@ -1,4 +1,4 @@
-package com.bordeauxbrothers.parkshark.person.service.dtos;
+package com.bordeauxbrothers.parkshark.person.api.dtos;
 
 import jakarta.validation.constraints.NotBlank;
 

@@ -2,7 +2,7 @@ package com.bordeauxbrothers.parkshark.person.service;
 
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.PostalCode;
 import com.bordeauxbrothers.parkshark.person.repositories.PostalCodeRepository;
-import com.bordeauxbrothers.parkshark.person.service.dtos.PostalCodeDTO;
+import com.bordeauxbrothers.parkshark.person.api.dtos.PostalCodeDTO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

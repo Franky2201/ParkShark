@@ -1,6 +1,6 @@
 package com.bordeauxbrothers.parkshark.person.service.customvalidators;
 
-import com.bordeauxbrothers.parkshark.person.service.dtos.AddMemberDTO;
+import com.bordeauxbrothers.parkshark.person.api.dtos.AddMemberDTO;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 

@@ -3,8 +3,8 @@ package com.bordeauxbrothers.parkshark.person.service.mappers;
 import com.bordeauxbrothers.parkshark.person.domain.Member;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Address;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.LicensePlate;
-import com.bordeauxbrothers.parkshark.person.service.dtos.AddMemberDTO;
-import com.bordeauxbrothers.parkshark.person.service.dtos.GetAllMembersDTO;
+import com.bordeauxbrothers.parkshark.person.api.dtos.AddMemberDTO;
+import com.bordeauxbrothers.parkshark.person.api.dtos.GetAllMembersDTO;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 

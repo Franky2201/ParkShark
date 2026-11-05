@@ -2,8 +2,8 @@ package com.bordeauxbrothers.parkshark.person.service.mappers;
 
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Address;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.PostalCode;
-import com.bordeauxbrothers.parkshark.person.service.dtos.AddressDTO;
-import com.bordeauxbrothers.parkshark.person.service.dtos.PostalCodeDTO;
+import com.bordeauxbrothers.parkshark.person.api.dtos.AddressDTO;
+import com.bordeauxbrothers.parkshark.person.api.dtos.PostalCodeDTO;
 import org.springframework.stereotype.Component;
 
 @Component
