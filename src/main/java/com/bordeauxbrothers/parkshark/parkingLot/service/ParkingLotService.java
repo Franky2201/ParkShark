@@ -41,6 +41,7 @@ public class ParkingLotService {
                              PersonRepository personRepository,
                              PostalCodeService postalCodeService,
                              ParkingLotMapper parkingLotMapper) {
+        log.debug("Creating ParkingLotService");
         this.parkingLotRepository = parkingLotRepository;
         this.divisionRepository = divisionRepository;
         this.personRepository = personRepository;
@@ -70,7 +71,7 @@ public class ParkingLotService {
         Person person = personRepository.findById(contactPersonId)
                 .orElseThrow(() -> new ContactPersonNotFoundException(contactPersonId));
         if (!(person instanceof Member member)) {
-            throw new InvalidContactPersonException(contactPersonId, "only members can be a contact person");
+            throw new InvalidContactPersonException(contactPersonId, "Only members can be a contact person");
         }
         return member;
     }

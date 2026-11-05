@@ -93,6 +93,7 @@ public class PersonService {
     }
 
     public List<GetAllMembersDTO> getAllMembers() {
+        log.info("Getting all members");
         return personRepository.getAllMembers().stream()
                 .map(personMapper::fromMemberToGetAllMembersDTO)
                 .toList();
@@ -103,7 +104,6 @@ public class PersonService {
         try {
             requested = Membership.valueOf(membership.getMembership().trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ex) {
-            log.error("Membership {} is not valid", membership.getMembership().trim().toUpperCase());
             throw new InvalidMembershipException(
                     String.format("Membership %s is not valid", membership.getMembership().trim().toUpperCase())
             );
@@ -115,7 +115,6 @@ public class PersonService {
     }
 
     public Member getMember(int id) {
-        log.info("Getting member with id {}", id);
         return personRepository.findMemberById(id)
                 .orElseThrow(() -> new NotExistingUserException("Member with id " + id + " not found"));
     }
