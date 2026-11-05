@@ -35,20 +35,20 @@ class PersonMapperTest {
     void fromAddMemberDTOtoMember() {
         AddMemberDTO dto = aValidAddMemberDTO();
         Member source = aValidMember();
-        when(passwordEncoder.encode(dto.getPassword())).thenReturn("encoded-password");
+        when(passwordEncoder.encode(dto.password())).thenReturn("encoded-password");
 
         Member result = personMapper.fromAddMemberDTOtoMember(
                 dto, source.getAddress(), source.getLicensePlate());
 
-        assertEquals(dto.getName().getFirstName(), result.getName().getFirstName());
-        assertEquals(dto.getName().getLastName(), result.getName().getLastName());
-        assertEquals(dto.getEmail(), result.getEmail());
+        assertEquals(dto.name().getFirstName(), result.getName().getFirstName());
+        assertEquals(dto.name().getLastName(), result.getName().getLastName());
+        assertEquals(dto.email(), result.getEmail());
         assertEquals("encoded-password", result.getPasswordHash());
-        assertEquals(dto.getPhoneNumber(), result.getPhoneNumber());
-        assertEquals(dto.getMobileNumber(), result.getMobileNumber());
+        assertEquals(dto.phoneNumber(), result.getPhoneNumber());
+        assertEquals(dto.mobileNumber(), result.getMobileNumber());
         assertSame(source.getAddress(), result.getAddress());
         assertSame(source.getLicensePlate(), result.getLicensePlate());
-        assertEquals(dto.getMembership(), result.getMembership());
+        assertEquals(dto.membership(), result.getMembership());
         assertEquals(LocalDate.now(), result.getRegistrationDate());
     }
 
@@ -58,13 +58,13 @@ class PersonMapperTest {
 
         var result = personMapper.fromMemberToGetAllMembersDTO(member);
 
-        assertNull(result.getId());
-        assertEquals(member.getName().getFirstName(), result.getName().getFirstName());
-        assertEquals(member.getName().getLastName(), result.getName().getLastName());
-        assertEquals(member.getLicensePlate().getNumber(), result.getLicensePlateNumber());
-        assertEquals(member.getPhoneNumber(), result.getPhoneNumber());
-        assertEquals(member.getEmail(), result.getEmail());
-        assertEquals(member.getRegistrationDate(), result.getRegistrationDate());
+        assertNull(result.id());
+        assertEquals(member.getName().getFirstName(), result.name().getFirstName());
+        assertEquals(member.getName().getLastName(), result.name().getLastName());
+        assertEquals(member.getLicensePlate().getNumber(), result.licensePlateNumber());
+        assertEquals(member.getPhoneNumber(), result.phoneNumber());
+        assertEquals(member.getEmail(), result.email());
+        assertEquals(member.getRegistrationDate(), result.registrationDate());
     }
 
     private AddMemberDTO aValidAddMemberDTO() {

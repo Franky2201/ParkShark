@@ -21,8 +21,8 @@ public class PostalCodeService {
      * so an existing one is reused instead of inserting a duplicate.
      */
     public PostalCode findOrCreate(PostalCodeDTO postalCodeDTO) {
-        return postalCodeRepository.findByZipCodeAndLabel(postalCodeDTO.getZipCode(), postalCodeDTO.getLabel())
+        return postalCodeRepository.findByZipCodeAndLabel(postalCodeDTO.zipCode(), postalCodeDTO.label())
                 .orElseGet(() -> postalCodeRepository.save(
-                        new PostalCode(postalCodeDTO.getZipCode(), postalCodeDTO.getLabel())));
+                        new PostalCode(postalCodeDTO.zipCode(), postalCodeDTO.label())));
     }
 }

@@ -174,10 +174,10 @@ class ParkingLotServiceTest {
             assertThat(result.pricePerHour()).isEqualByComparingTo("3.50");
             assertThat(result.contactPersonId()).isEqualTo(CONTACT_PERSON_ID);
             assertThat(result.division().id()).isEqualTo(DIVISION_ID);
-            assertThat(result.address().getStreet()).isEqualTo("CanterSteen");
-            assertThat(result.address().getNumber()).isEqualTo("12");
-            assertThat(result.address().getPostalCodeDTO().getZipCode()).isEqualTo("1000");
-            assertThat(result.address().getPostalCodeDTO().getLabel()).isEqualTo("Brussels");
+            assertThat(result.address().street()).isEqualTo("CanterSteen");
+            assertThat(result.address().number()).isEqualTo("12");
+            assertThat(result.address().postalCodeDTO().zipCode()).isEqualTo("1000");
+            assertThat(result.address().postalCodeDTO().label()).isEqualTo("Brussels");
         }
     }
 
@@ -334,10 +334,10 @@ class ParkingLotServiceTest {
             assertThat(result.maxCapacity()).isEqualTo(250);
             assertThat(result.pricePerHour()).isEqualByComparingTo("3.50");
             assertThat(result.contactPersonId()).isEqualTo(CONTACT_PERSON_ID);
-            assertThat(result.address().getStreet()).isEqualTo("CanterSteen");
-            assertThat(result.address().getNumber()).isEqualTo("12");
-            assertThat(result.address().getPostalCodeDTO().getZipCode()).isEqualTo("1000");
-            assertThat(result.address().getPostalCodeDTO().getLabel()).isEqualTo("Brussels");
+            assertThat(result.address().street()).isEqualTo("CanterSteen");
+            assertThat(result.address().number()).isEqualTo("12");
+            assertThat(result.address().postalCodeDTO().zipCode()).isEqualTo("1000");
+            assertThat(result.address().postalCodeDTO().label()).isEqualTo("Brussels");
 
             assertThat(result.division()).isNotNull();
             assertThat(result.division().id()).isEqualTo(DIVISION_ID);

@@ -44,15 +44,15 @@ public class PersonMapper {
             LicensePlate licensePlate
     ) {
         return new Member(
-                dto.getName(),
-                dto.getEmail(),
-                passwordEncoder.encode(dto.getPassword()),
+                dto.name(),
+                dto.email(),
+                passwordEncoder.encode(dto.password()),
                 LocalDate.now(),
                 address,
-                dto.getPhoneNumber(),
-                dto.getMobileNumber(),
+                dto.phoneNumber(),
+                dto.mobileNumber(),
                 licensePlate,
-                dto.getMembership()
+                dto.membership()
         );
     }
 

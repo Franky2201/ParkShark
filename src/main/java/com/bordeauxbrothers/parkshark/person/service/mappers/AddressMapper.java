@@ -14,7 +14,7 @@ public class AddressMapper {
      * because (zip code, label) is unique in the database.
      */
     public Address toEntity(AddressDTO addressDTO, PostalCode postalCode) {
-        return new Address(addressDTO.getStreet(), addressDTO.getNumber(), postalCode);
+        return new Address(addressDTO.street(), addressDTO.number(), postalCode);
     }
 
     public AddressDTO toDto(Address address) {

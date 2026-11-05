@@ -66,7 +66,7 @@ class PersonServiceTest {
         LicensePlate licensePlate = new LicensePlate("1-ABC-123", "Belgium");
         Member member = mock(Member.class);
 
-        when(personRepository.findByEmail(addMemberDTO.getEmail()))
+        when(personRepository.findByEmail(addMemberDTO.email()))
                 .thenReturn(Optional.empty());
         when(postalCodeRepository.save(any(PostalCode.class)))
                 .thenReturn(postalCode);
@@ -101,7 +101,7 @@ class PersonServiceTest {
 
     @Test
     void addMember_whenEmailAlreadyExists_throwsAndSavesNothing() {
-        when(personRepository.findByEmail(addMemberDTO.getEmail()))
+        when(personRepository.findByEmail(addMemberDTO.email()))
                 .thenReturn(Optional.of(mock(Person.class)));
 
         assertThatThrownBy(() -> personService.addMember(addMemberDTO))

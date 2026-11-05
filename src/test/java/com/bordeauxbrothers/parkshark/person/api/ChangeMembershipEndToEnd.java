@@ -138,7 +138,7 @@ public class ChangeMembershipEndToEnd {
                 .put("/person/membership")
                 .then()
                 .statusCode(400)
-                .body("detail", equalTo(String.format("Membership %s is not valid", dto.getMembership().trim().toUpperCase())
+                .body("detail", equalTo(String.format("Membership %s is not valid", dto.membership().trim().toUpperCase())
                 )).contentType(ContentType.JSON);
     }
 }
