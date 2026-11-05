@@ -3,6 +3,7 @@ package com.bordeauxbrothers.parkshark.person.api;
 import com.bordeauxbrothers.parkshark.common.security.SecurityService;
 import com.bordeauxbrothers.parkshark.person.api.dtos.AddMemberDTO;
 import com.bordeauxbrothers.parkshark.person.api.dtos.GetAllMembersDTO;
+import com.bordeauxbrothers.parkshark.person.api.dtos.MemberDTO;
 import com.bordeauxbrothers.parkshark.person.api.dtos.MembershipDTO;
 import com.bordeauxbrothers.parkshark.person.domain.Person;
 import com.bordeauxbrothers.parkshark.person.domain.persondetails.Feature;
