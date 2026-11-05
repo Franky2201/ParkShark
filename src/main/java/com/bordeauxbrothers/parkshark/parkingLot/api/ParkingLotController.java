@@ -15,6 +15,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.*;
@@ -33,6 +35,7 @@ public class ParkingLotController {
 
     private final ParkingLotService parkingLotService;
     private final SecurityService securityService;
+    Logger log = LoggerFactory.getLogger(ParkingLotController.class);
 
     public ParkingLotController(ParkingLotService parkingLotService, SecurityService securityService) {
         this.parkingLotService = parkingLotService;
@@ -163,9 +166,9 @@ public class ParkingLotController {
             )
     )
     public ParkingLotDto createParkingLot(
-            @Parameter(hidden = true)
-            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @Parameter(hidden = true) @RequestHeader(value = "Authorization", required = false) String authorization,
             @Valid @RequestBody CreateParkingLotDto createParkingLotDto) {
+        log.info("Trying to create parking lot.");
         securityService.validateAuthorization(authorization, CREATE_PARKING_LOT);
         return parkingLotService.createParkingLot(createParkingLotDto);
     }
@@ -222,8 +225,8 @@ public class ParkingLotController {
             )
     )
     public List<ParkingLotOverviewDto> getAllParkingLots(
-            @Parameter(hidden = true)
-            @RequestHeader(value = "Authorization", required = false) String authorization) {
+            @Parameter(hidden = true) @RequestHeader(value = "Authorization", required = false) String authorization) {
+        log.info("Trying to get all parking lots.");
         securityService.validateAuthorization(authorization, SEE_ALL_PARKING_LOTS);
         return parkingLotService.getAllParkingLots();
     }
@@ -274,10 +277,9 @@ public class ParkingLotController {
             )
     )
     public ParkingLotDto getParkingLot(
-            @Parameter(hidden = true)
-            @RequestHeader(value = "Authorization", required = false) String authorization,
-            @Parameter(description = "ID of the parking lot.", example = "42")
-            @PathVariable int id) {
+            @Parameter(description = "Id of the parking lot", example = "42") @PathVariable int id,
+            @Parameter(hidden = true) @RequestHeader(value = "Authorization", required = false) String authorization) {
+        log.info("Trying to get parking lot with id {}", id);
         securityService.validateAuthorization(authorization, SEE_SPECIFIC_PARKING_LOT);
         return parkingLotService.getParkingLot(id);
     }

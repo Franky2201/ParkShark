@@ -16,6 +16,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.*;
@@ -34,6 +36,7 @@ public class ParkingSpotAllocationController {
 
     private final ParkingSpotAllocationService parkingSpotAllocationService;
     private final SecurityService securityService;
+    Logger log = LoggerFactory.getLogger(ParkingSpotAllocationController.class);
 
     public ParkingSpotAllocationController(ParkingSpotAllocationService parkingSpotAllocationService, SecurityService securityService) {
         this.parkingSpotAllocationService = parkingSpotAllocationService;
@@ -148,6 +151,7 @@ public class ParkingSpotAllocationController {
             @Parameter(hidden = true)
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @Valid @RequestBody StartAllocationDto startAllocationDto) {
+        log.info("Trying to start allocating a Parking Spot.");
         Person user = securityService.validateAuthorization(authorization, CREATE_PARKING_LOT_ALLOCATION);
         return parkingSpotAllocationService.startAllocatingParkingSpot(startAllocationDto, user);
     }
@@ -232,6 +236,7 @@ public class ParkingSpotAllocationController {
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @Parameter(description = "ID of the allocation to stop.", example = "101")
             @PathVariable int id) {
+        log.info("Trying to stop allocating a Parking Spot.");
         Person user = securityService.validateAuthorization(authorization, STOP_PARKING_LOT_ALLOCATION);
         return parkingSpotAllocationService.stopAllocatingParkingSpot(id, user);
     }
@@ -322,7 +327,8 @@ public class ParkingSpotAllocationController {
             @Parameter(description = "Only return allocations with this status. Omit to return all.")
             @RequestParam(name = "status", required = false) AllocationStatus status,
             @Parameter(description = "Order by start time descending instead of ascending.")
-            @RequestParam(name = "desc", defaultValue = "false") boolean desc) {
+            @RequestParam(name = "desc", required = false) boolean desc) {
+        log.info("Trying to get all allocating parking spots.");
         securityService.validateAuthorization(authorization, SEE_ALL_ALLOCATIONS);
         return parkingSpotAllocationService.getAllAllocatingParkingSpotsFiltered(limit, status, desc);
     }
@@ -387,6 +393,7 @@ public class ParkingSpotAllocationController {
             @PathVariable int id,
             @Parameter(description = "Only return allocations with this status. Omit to return all.")
             @RequestParam(name = "status", required = false) AllocationStatus status) {
+        log.info("Trying to get all allocating parking spots for member {}.", id);
         securityService.validateAuthorization(authorization, SEE_MEMBER_PARKINGLOT_ALLOCATIONS);
         return parkingSpotAllocationService.getAllAllocatingParkingSpotsForMemberFiltered(id, status);
     }
@@ -451,7 +458,10 @@ public class ParkingSpotAllocationController {
             @PathVariable int id,
             @Parameter(description = "Only return allocations with this status. Omit to return all.")
             @RequestParam(name = "status", required = false) AllocationStatus status) {
+        log.info("Trying to get all allocating parking spots for parking lot {}.", id);
         securityService.validateAuthorization(authorization, SEE_ALLOCATIONS_FOR_SPECIFIC_PARKING_LOT);
         return parkingSpotAllocationService.getAllAllocatingParkingSpotsForParkingLotFiltered(id, status);
     }
+
+
 }

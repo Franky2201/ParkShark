@@ -55,7 +55,6 @@ public class PersonService {
         isEmailAlreadyUsed(dto.email());
         var postalCodeDTO = dto.addressDTO().postalCodeDTO();
 
-        log.info("Saving postal code {}", postalCodeDTO);
         PostalCode savedPostalCode = postalCodeRepository.save(
                 new PostalCode(postalCodeDTO.zipCode(), postalCodeDTO.label())
         );
@@ -72,7 +71,6 @@ public class PersonService {
 
         var plateDTO = dto.licensePlateDTO();
 
-        log.info("Saving license plate {}", plateDTO);
         LicensePlate savedPlate = licensePlateRepository.save(
                 new LicensePlate(plateDTO.number(), plateDTO.country())
         );
@@ -83,19 +81,20 @@ public class PersonService {
                 savedPlate
         );
 
-        log.info("Saving member {}", member);
         personRepository.save(member);
+        log.info("Member created");
     }
 
     public void isEmailAlreadyUsed(String email) {
         log.info("Checking if email {} is already used", email);
-        if (personRepository.findByEmail(email).isPresent()) {
+        if (personRepository.findByEmail(email).isPresent()){
             throw new EmailAlreadyInUseException("Email already used");
         }
     }
 
     @Transactional(readOnly = true)
     public List<GetAllMembersDTO> getAllMembers() {
+        log.debug("Getting all members");
         return personRepository.getAllMembers().stream()
                 .map(personMapper::fromMemberToGetAllMembersDTO)
                 .toList();
@@ -111,7 +110,6 @@ public class PersonService {
                     String.format("Membership %s is not valid", membership.membership().trim().toUpperCase())
             );
         }
-        log.info("Casting Person to Member");
         Member member = (Member) user;
         member.setMembership(requested);
         personRepository.save(member);

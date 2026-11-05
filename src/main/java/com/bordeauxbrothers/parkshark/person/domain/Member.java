@@ -81,10 +81,8 @@ public class Member extends Person {
 
     public void setMembership(Membership membership) {
         if (this.membership != membership) {
-            logger.info("Membership changed from {} to {}", this.membership.getLabel(), membership.getLabel());
             this.membership = membership;
         } else {
-            logger.warn("Membership hasn't changed. Your membership was already: {}", membership.getLabel());
             throw new UnchangedMembershipException(String.format("Membership hasn't changed. Your membership was already: %s.", membership.getLabel()));
         }
     }
